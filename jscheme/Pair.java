@@ -1,5 +1,7 @@
 package jscheme;
 
+import java.util.Objects;
+
 /** A Pair has two fields, first and rest (or car and cdr). 
  * The empty list is represented by null. The methods that you might
  * expect here, like first, second, list, etc. are instead static methods
@@ -31,6 +33,11 @@ public class Pair extends SchemeUtils {
 	}
     }
 
+    /** Hash the Pair using the hashes of the first and rest. **/
+    public int hashCode() {
+        return Objects.hash(first, rest);
+    }
+    
   /** Return a String representation of the pair. **/
   public String toString() { return stringify(this, true); }
 
