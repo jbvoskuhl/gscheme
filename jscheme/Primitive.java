@@ -488,6 +488,7 @@ public class Primitive extends Procedure {
     case METHOD:        return new JavaMethod(stringify(x, false), y,
 					      rest(rest(args)));
     case EXIT:          System.exit((x == null) ? 0 : (int)num(x));
+                        return null;
     case LISTSTAR:      return listStar(args);
     case TIMECALL:      Runtime runtime = Runtime.getRuntime();
                         runtime.gc();
@@ -665,8 +666,6 @@ public class Primitive extends Procedure {
       return new InputPort(new FileInputStream(stringify(filename, false)));
     } catch (FileNotFoundException e) {
       return (InputPort)error("No such file: " + stringify(filename));
-    } catch (IOException e) {
-      return (InputPort)error("IOException: " + e);
     }
   }
 

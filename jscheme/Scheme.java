@@ -40,7 +40,7 @@ public class Scheme extends SchemeUtils {
     for(;;) {
       try {
 	output.print("> "); output.flush();
-	if (input.isEOF(x = input.read())) return;
+	if (InputPort.isEOF(x = input.read())) return;
 	write(eval(x), output, true); 
 	output.println(); output.flush();
       } catch (RuntimeException e) { ; }
@@ -58,7 +58,7 @@ public class Scheme extends SchemeUtils {
   public Object load(InputPort in) {
     Object x = null;
     for(;;) {
-      if (in.isEOF(x = in.read())) return TRUE;
+      if (InputPort.isEOF(x = in.read())) return TRUE;
       eval(x); 
     }
   }
