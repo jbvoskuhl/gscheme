@@ -77,8 +77,7 @@ func SetFirst(x interface{}, y interface{}) interface{} {
 		pair.SetFirst(y)
 		return y
 	}
-	// TODO(jbvoskuhl): Change this once Error is checked in.
-	return nil // Error("Attempt to set-car of a non-Pair:" + Stringify(x))
+	return Err("Attempt to set-car of a non-Pair:", List(y))
 }
 
 // SetRest is like Common Lisp (setf (rest x) y) and changes the cdr of x to be y.
@@ -87,8 +86,7 @@ func SetRest(x interface{}, y interface{}) interface{} {
 		pair.SetRest(y)
 		return y
 	}
-	// TODO(jbvoskuhl): Change this once Error is checked in.
-	return nil // Error("Attempt to set-cdr of a non-Pair: " + Stringify(x))
+	return Err("Attempt to set-cdr of a non-Pair: ", List(y))
 }
 
 // Second is like Common Lisp second and returns the second item in a list.
@@ -101,11 +99,11 @@ func Third(x interface{}) interface{} {
 	return First(Rest(Rest(x)))
 }
 
-func List(elements ...interface{}) interface{} {
+func List(elements ...interface{}) Pair {
 	index := len(elements) - 1
-	var result interface{} = nil
+	var result Pair = nil
 	for index >= 0 {
-		result = Cons(elements[index], result)
+		result = NewPair(elements[index], result)
 		index--
 	}
 	return result
