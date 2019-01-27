@@ -1,6 +1,9 @@
 package gscheme
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Pair has two fields, first and rest (sometimes called car and cdr).  The empty list is represented by nil.
 type Pair interface {
@@ -21,10 +24,26 @@ func NewPair(first interface{}, rest interface{}) Pair {
 	return &pair{first, rest}
 }
 
-// String defers to the centralized string formatting utility called Stringify.
+// String for a list defers to the centralized string formatting utility called Stringify for list elements.
 func (p *pair) String() string {
-	// TODO(jbvoskuhl): Change this once Stringify is checked in.
-	return "(1)" // Stringify(p)
+	builder := strings.Builder{}
+	builder.WriteString("(")
+	var current interface{} = p
+	ok := true
+	for ok {
+		builder.WriteString(Stringify(First(current)))
+		current = Rest(current)
+		_, ok = current.(Pair)
+		if ok {
+			builder.WriteString(" ")
+		}
+	}
+	if current != nil {
+		builder.WriteString(" . ")
+		builder.WriteString(Stringify(current))
+	}
+	builder.WriteString(")")
+	return builder.String()
 }
 
 // First gives back the first field of a pair.

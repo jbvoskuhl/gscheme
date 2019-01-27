@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestString(t *testing.T) {
+func TestPairString(t *testing.T) {
 	var list Pair = NewPair(1, nil)
 	if "(1)" != list.String() {
 		t.Errorf("List of (1) does not print like \"(1)\" instead was: \"%s\".", list.String())
