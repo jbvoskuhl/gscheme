@@ -1,0 +1,13 @@
+# -*- mode: gitignore; -*-
+
+# Emacs temp files
+*~
+\#*\#
+
+# Compiled Java class file
+*.class
+
+# JetBrains project files
+.idea/*
+
+
