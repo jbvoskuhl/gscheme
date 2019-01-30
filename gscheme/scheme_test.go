@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestNewLoad(t *testing.T) {
+	files := []string {"./scheme_test.scm"}
+	scheme := New().LoadFiles(files)
+	scheme.EvalGlobal(45)
+}
+
 func TestEvalConstants(t *testing.T) {
 	scheme := New()
 	result := scheme.EvalGlobal(42)

@@ -3,6 +3,7 @@ package gscheme
 
 import (
 	"fmt"
+	"io/ioutil"
 )
 
 // This respresents an instance of the Scheme interpreter.  Instantiate this then evaluate programs here.
@@ -40,14 +41,19 @@ func (s *scheme) LoadCode(code string) Scheme {
 }
 
 // LoadFile loads code from a file to bootstrap the environment.
-func (s *scheme) LoadFile(file string) Scheme {
-	return s
+func (s *scheme) LoadFile(filename string) Scheme {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		// TODO(jbvoskuhl): Make this fail more gracefully; bootstrap files must exist or later the system will explode.
+		return s
+	}
+	return s.LoadCode(string(content))
 }
 
 // LoadFiles loads code from several files to bootstrap the environment.
-func (s *scheme) LoadFiles(files []string) Scheme {
-	for _, file := range files {
-		s.LoadFile(file)
+func (s *scheme) LoadFiles(filenames []string) Scheme {
+	for _, filename := range filenames {
+		s.LoadFile(filename)
 	}
 	return s
 }
