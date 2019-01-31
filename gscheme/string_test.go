@@ -24,9 +24,9 @@ func TestDottedList(t *testing.T) {
 }
 
 func TestNestedList(t *testing.T) {
-	list := List(List(1, 2), List(3, 4))
-	if Stringify(list) != "((1 2) (3 4))" {
-		t.Errorf("A nested list doesn't stringify as ((1 2) (3 4)) instead it was: %v.", Stringify(list))
+	list := List(List(1, false), List(true, 4))
+	if Stringify(list) != "((1 #f) (#t 4))" {
+		t.Errorf("A nested list doesn't stringify as ((1 #f) (#t 4)) instead it was: %v.", Stringify(list))
 	}
 }
 

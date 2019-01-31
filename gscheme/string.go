@@ -8,6 +8,12 @@ func Stringify(object interface{}) string {
 		return "()"
 	}
 	switch value := object.(type) {
+	case bool:
+		if value {
+			return "#t"
+		} else {
+			return "#f"
+		}
 	case string:
 		return fmt.Sprintf("\"%s\"", value)
 	case Symbol:
