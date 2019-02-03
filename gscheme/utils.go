@@ -6,7 +6,8 @@ func Truth(x interface{}) bool {
 	return !ok || result
 }
 
-// Num converts a Scheme object to a double, or calls error.
+// Num converts a Scheme object to a double, or calls error.  For now, numbers are coerced to float64
+// inside of gscheme.
 func Num(x interface{}) float64 {
 	switch value := x.(type) {
 	case float64:
@@ -30,7 +31,7 @@ func Num(x interface{}) float64 {
 	case uint8:
 		return float64(value)
 	default:
-		return Num(Err("expected a number, got: %v", List(x)))
+		return Num(Err("Expected a number, instead got:", List(x)))
 	}
 }
 
