@@ -33,3 +33,21 @@ func TestMathPrimitives(t *testing.T) {
 		}
 	}
 }
+
+func TestTooFewArguments(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("symbol->string"))
+	result := interpreter.EvalGlobal(expression)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("Expected an error from calling a primitive with too few arguments.")
+	}
+}
+
+func TestTooManyArguments(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("symbol->string"), Symbol("hello"), Symbol("world"))
+	result := interpreter.EvalGlobal(expression)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("Expected an error from calling a primitive with too few arguments.")
+	}
+}

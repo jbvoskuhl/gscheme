@@ -1,5 +1,13 @@
 package gscheme
 
+// installMathPrimitives adds mathematical primitives to a given environment.
+func installMathPrimitives(environment Environment) {
+	environment.DefineName(NewPrimitive("*", minArgs, maxArgs, times))
+	environment.DefineName(NewPrimitive("+", minArgs, maxArgs, plus))
+	environment.DefineName(NewPrimitive("-", 1, maxArgs, minus))
+	environment.DefineName(NewPrimitive("/", 1, maxArgs, divide))
+}
+
 func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(interface{}) interface{} {
 	return func(args interface{}) interface{} {
 		result := unary

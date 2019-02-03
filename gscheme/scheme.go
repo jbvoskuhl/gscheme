@@ -62,10 +62,24 @@ func (s *scheme) Environment() Environment {
 }
 
 // Eval will evaluate a single Scheme expression with respect to a given environment and return the result.
-func (s *scheme) Eval(x interface{}, environment Environment) interface{} {
+func (s *scheme) Eval(x interface{}, environment Environment) (result interface{}) {
 	// The purpose of the while loop is to allow tail recursion.
 	// The idea is that in a tail recursive position, we do "x = ..."
 	// and loop, rather than doing "return eval(...)".
+
+	// If there was a scheme error raise'd by this eval, return it here.
+	defer func() {
+		recovered := recover()
+		if recovered != nil {
+			err, ok := recovered.(Error)
+			if ok {
+				result = err
+				return
+			}
+			panic(err)
+		}
+	}()
+	// Loop so we can implement tail recursion for special forms that require it.
 	for {
 		switch value := x.(type) {
 		case Symbol:

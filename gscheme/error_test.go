@@ -37,3 +37,12 @@ func TestErr(t *testing.T) {
 	}()
 	Err("message", nil)
 }
+
+func TestErrorExpression(t *testing.T) {
+	interpreter := New()
+	expression := List(45) // This is an error because 45 is not callable.
+	result := interpreter.EvalGlobal(expression)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("Expected an error object but instead was: %v", result)
+	}
+}
