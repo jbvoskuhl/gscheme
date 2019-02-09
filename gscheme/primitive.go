@@ -13,13 +13,13 @@ type Primitive interface {
 type primitive struct {
 	procedure
 	minArgs, maxArgs uint16
-	body             func(interface{}) interface{}
+	body             func(Pair) interface{}
 }
 
 const maxArgs = math.MaxUint16
 const minArgs = uint16(0)
 
-func NewPrimitive(name Symbol, minArgs, maxArgs uint16, body func(interface{}) interface{}) Primitive {
+func NewPrimitive(name Symbol, minArgs, maxArgs uint16, body func(Pair) interface{}) Primitive {
 	return &primitive{
 		procedure: procedure{name: name},
 		body:      body,

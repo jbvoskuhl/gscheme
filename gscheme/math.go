@@ -8,12 +8,12 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("/", 1, maxArgs, divide))
 }
 
-func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(interface{}) interface{} {
-	return func(args interface{}) interface{} {
+func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(Pair) interface{} {
+	return func(args Pair) interface{} {
 		result := unary
 		for args != nil {
 			result = binary(result, First(args))
-			args = Rest(args)
+			args = RestPair(args)
 		}
 		return result
 	}
@@ -39,18 +39,18 @@ var times = reduce(binaryTimes, float64(1))
 
 var plus = reduce(binaryPlus, float64(0))
 
-func minus(args interface{}) interface{} {
+func minus(args Pair) interface{} {
 	if Rest(args) == nil {
 		return binaryMinus(float64(0), First(args))
 	} else {
-		return reduce(binaryMinus, Num(First(args)))(Rest(args))
+		return reduce(binaryMinus, Num(First(args)))(RestPair(args))
 	}
 }
 
-func divide(args interface{}) interface{} {
+func divide(args Pair) interface{} {
 	if Rest(args) == nil {
 		return binaryDivide(float64(1), First(args))
 	} else {
-		return reduce(binaryDivide, Num(First(args)))(Rest(args))
+		return reduce(binaryDivide, Num(First(args)))(RestPair(args))
 	}
 }

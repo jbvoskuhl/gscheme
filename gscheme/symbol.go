@@ -11,17 +11,18 @@ func installSymbolPrimitives(environment Environment) {
 }
 
 // isSymbol is shorthand for a test for whether an object is a Symbol or not.
-func isSymbolPrimitive(object interface{}) interface{} {
-	_, ok := object.(Symbol)
+func isSymbolPrimitive(args Pair) interface{} {
+	arg := First(args)
+	_, ok := arg.(Symbol)
 	return ok
 }
 
 // symbolToString converts a symbol into the corresponding string.
-func symbolToStringPrimitive(args interface{}) interface{} {
+func symbolToStringPrimitive(args Pair) interface{} {
 	return string(symbolConstraint(First(args)))
 }
 
 // stringToSymbol converts a string into the corresponding Symbol.
-func stringToSymbolPrimitive(args interface{}) interface{} {
+func stringToSymbolPrimitive(args Pair) interface{} {
 	return Symbol(stringConstraint(First(args)))
 }

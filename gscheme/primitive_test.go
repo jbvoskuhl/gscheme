@@ -8,7 +8,7 @@ func TestPrimitiveSeven(t *testing.T) {
 		Symbol("seven"),
 		0,
 		0,
-		func(args interface{}) interface{} {
+		func(args Pair) interface{} {
 			return 7
 		})
 	result := primitive.Apply(scheme, nil, nil)

@@ -82,6 +82,13 @@ func Rest(object interface{}) interface{} {
 	return nil
 }
 
+// RestPair takes the rest of a list, always returning a Pair.
+func RestPair(object interface{}) Pair {
+	result := Rest(object)
+	pair, _ := result.(Pair)
+	return pair
+}
+
 // Last is like Common Lisp last; last element from a non-empty list, or nil for anything else.
 func Last(list interface{}) interface{} {
 	for Rest(list) != nil {
@@ -118,9 +125,9 @@ func Third(x interface{}) interface{} {
 	return First(Rest(Rest(x)))
 }
 
-func List(elements ...interface{}) Pair {
+func List(elements ...interface{}) (result Pair) {
 	index := len(elements) - 1
-	var result Pair = nil
+	result = nil
 	for index >= 0 {
 		result = NewPair(elements[index], result)
 		index--
