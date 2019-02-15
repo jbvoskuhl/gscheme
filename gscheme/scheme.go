@@ -9,7 +9,7 @@ import (
 type Scheme interface {
 	Environment() Environment
 	Eval(x interface{}, environment Environment) interface{}
-	EvalList(list interface{}, environment Environment) interface{}
+	EvalList(list Pair, environment Environment) Pair
 	EvalGlobal(x interface{}) interface{}
 	LoadCode(code string) Scheme
 	LoadFile(file string) Scheme
@@ -30,6 +30,7 @@ func New() Scheme {
 	result := &scheme{environment: NewRootEnvironment()}
 	installSpecialForms(result.environment)
 	installPrimitives(result.environment)
+	installCharacterPrimitives(result.environment)
 	return result
 }
 
@@ -89,7 +90,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			}
 			return variable
 		case Pair:
-			return s.EvalCombination(s.Eval(First(value), environment), Rest(value), environment)
+			return s.EvalCombination(s.Eval(First(value), environment), RestPair(value), environment)
 		default:
 			return x
 		}
@@ -97,22 +98,21 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 }
 
 // EvalList evaluates each expression in turn and returns the last one.
-func (s *scheme) EvalList(list interface{}, environment Environment) interface{} {
+func (s *scheme) EvalList(list Pair, environment Environment) Pair {
 	if list == nil {
 		return nil
 	} else {
-		return Cons(s.Eval(First(list), environment), s.EvalList(Rest(list), environment))
+		return NewPair(s.Eval(First(list), environment), s.EvalList(RestPair(list), environment))
 	}
 }
 
 // EvalCombination evaluates the first item in the list and applies the remaining arguments to it.
-func (s *scheme) EvalCombination(first interface{}, rest interface{}, environment Environment) interface{} {
+func (s *scheme) EvalCombination(first interface{}, rest Pair, environment Environment) interface{} {
 	p, ok := first.(Applyer)
 	if !ok {
 		return Err("Bad Procedure: ", List(first))
 	}
-	args, ok := rest.(Pair)
-	return p.Apply(s, args, environment)
+	return p.Apply(s, rest, environment)
 }
 
 func (s *scheme) EvalGlobal(x interface{}) interface{} {

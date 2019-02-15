@@ -21,13 +21,17 @@ func TestEvalSymbol(t *testing.T) {
 	if result != float64(3) {
 		t.Errorf("Expected 3 but instead got: %v", result)
 	}
+	result = scheme.Eval(Symbol("goodbye"), environment)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("Expected an error evaluating unbound symbol but instead got: %v", result)
+	}
 }
 
 func TestEvalList(t *testing.T) {
 	scheme := New()
 	environment := NewRootEnvironment()
 	environment.Define(Symbol("x"), float64(2))
-	list := Cons(float64(1), Cons(Symbol("x"), Cons(float64(3), nil)))
+	list := NewPair(float64(1), Cons(Symbol("x"), Cons(float64(3), nil)))
 	result := scheme.EvalList(list, environment)
 	expected := Cons(float64(1), Cons(float64(2), Cons(float64(3), nil)))
 	if !reflect.DeepEqual(expected, result) {
