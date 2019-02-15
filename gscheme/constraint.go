@@ -2,6 +2,15 @@ package gscheme
 
 import "fmt"
 
+// booleanConstraint is used to enforce boolean type constraints within primitives.
+func booleanConstraint(object interface{}) bool {
+	result, ok := object.(bool)
+	if !ok {
+		Err("Expected boolean, but instead got: ", List(object))
+	}
+	return result
+}
+
 // stringConstraint is used to enforce string type constraints within primitives.
 func stringConstraint(object interface{}) string {
 	result, ok := object.(string)

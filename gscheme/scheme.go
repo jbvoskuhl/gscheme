@@ -30,6 +30,7 @@ func New() Scheme {
 	result := &scheme{environment: NewRootEnvironment()}
 	installSpecialForms(result.environment)
 	installPrimitives(result.environment)
+	installBooleanPrimitives(result.environment)
 	installCharacterPrimitives(result.environment)
 	return result
 }
