@@ -29,7 +29,7 @@ func primitiveBooleanEqual(args Pair) interface{} {
 	return true
 }
 
-// primitiveNot negates its input.
+// primitiveNot negates the truthiness of its input.
 func primitiveNot(args Pair) interface{} {
-	return !booleanConstraint(First(args))
+	return !Truth(First(args))
 }
