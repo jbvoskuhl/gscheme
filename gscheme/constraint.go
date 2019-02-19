@@ -38,6 +38,35 @@ func characterConstraint(object interface{}) rune {
 	return result
 }
 
+// uint64Constraint is used to coerce integers into uint64 within primitives.
+func uint64Constraint(object interface{}) uint64 {
+	switch value := object.(type) {
+	case uint:
+		return uint64(value)
+	case uint8:
+		return uint64(value)
+	case uint16:
+		return uint64(value)
+	case uint32:
+		return uint64(value)
+	case uint64:
+		return uint64(value)
+	case int:
+		return uint64(value)
+	case int8:
+		return uint64(value)
+	case int16:
+		return uint64(value)
+	case int32:
+		return uint64(value)
+	case int64:
+		return uint64(value)
+	default:
+		Err(fmt.Sprintf("Expected integer type, but instead got: %T.", value), List(value))
+	}
+	return 0 // Should be uncalled since Err will raise an exception.
+}
+
 // integerConstraint is used to enforce integer type constraints within primitives.
 func integerConstraint(object interface{}) interface{} {
 	switch value := object.(type) {
