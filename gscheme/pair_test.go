@@ -6,7 +6,7 @@ import (
 )
 
 func TestPairString(t *testing.T) {
-	var list Pair = NewPair(1, nil)
+	list := NewPair(1, nil)
 	if "(1)" != list.String() {
 		t.Errorf("List of (1) does not print like \"(1)\" instead was: \"%s\".", list.String())
 	}
@@ -88,5 +88,74 @@ func TestReverse(t *testing.T) {
 	expected := List(3, 2, 1)
 	if !reflect.DeepEqual(expected, reverse) {
 		t.Errorf("Expected to reverse list (1 2 3) to be (3 2 1) but instead it was: %v.", reverse)
+	}
+}
+
+func TestPrimitiveCxr(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("caar"), List(Symbol("quote"), List(List(1, 2), 3)))
+	result := interpreter.EvalGlobal(expression)
+	if result != 1 {
+		t.Errorf("Exprected the expression (caar '((1 2) 3) to evaluate to 1.")
+	}
+}
+
+func makeListCycle(length uint) (result Pair) {
+	result = NewPair(length, nil)
+	tail := result
+	for length > 0 {
+		length--
+		result = NewPair(length, result)
+	}
+	tail.SetRest(result)
+	return
+}
+
+func TestPrimitiveListP(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("list?"), List(Symbol("quote"), List(1, 2, 3)))
+	result := interpreter.EvalGlobal(expression)
+	if result != true {
+		t.Errorf("Expected the expression (list? '(1 2 3)) to evaluate to #t.")
+	}
+	expression = List(Symbol("list?"), Cons(1, 2))
+	result = interpreter.EvalGlobal(expression)
+	if result != false {
+		t.Errorf("Expected the expression (list? (cons 1 2)) to evaluate to #f.")
+	}
+	expression = List(Symbol("list?"), nil)
+	result = interpreter.EvalGlobal(expression)
+	if result != true {
+		t.Errorf("Expected the expression (list? ()) to evaluate to #t.")
+	}
+	expression = List(Symbol("list?"), 5)
+	result = interpreter.EvalGlobal(expression)
+	if result != false {
+		t.Errorf("Expected the expression (list? 5) to evaluate to #f.")
+	}
+	expression = List(Symbol("list?"), List(Symbol("quote"), makeListCycle(3)))
+	result = interpreter.EvalGlobal(expression)
+	if result != false {
+		t.Errorf("Expected the expression (list? <huge-loop>) to evaluate to #f.")
+	}
+}
+
+func TestPrimitiveMakeList(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("make-list"), 4)
+	result := interpreter.EvalGlobal(expression)
+	if Len(result) != 4 {
+		t.Errorf("Expected make-list to produce a four element list.")
+	}
+	if First(result) != nil {
+		t.Errorf("Expected make-list to produce a list of null elements.")
+	}
+	expression = List(Symbol("make-list"), 1, 'a')
+	result = interpreter.EvalGlobal(expression)
+	if Len(result) != 1 {
+		t.Errorf("Expected make-list to produce a one element list.")
+	}
+	if First(result) != 'a' {
+		t.Errorf("Expected make-list to produce a list of 'a' elements.")
 	}
 }
