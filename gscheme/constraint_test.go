@@ -37,7 +37,10 @@ func TestIntegerConstraint(t *testing.T) {
 		expression := List(Symbol("integer->char"), number)
 		result := interpreter.EvalGlobal(expression)
 		if result != 'A' {
-			t.Errorf("Expected that the value %t passed into a primitive expecting integer would evaluate to #\\A.", result)
+			t.Errorf("Expected that the value %v passed into a primitive expecting integer would evaluate to #\\A.", result)
+		}
+		if uint64(65) != uint64Constraint(number) {
+			t.Errorf("Could not coerce the value %v into a uint64.", uint64Constraint(number))
 		}
 	}
 	expression := List(Symbol("integer->char"), "hello")

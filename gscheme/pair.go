@@ -162,6 +162,8 @@ func installListPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("make-list", 1, maxArgs, primitiveMakeList))
 	environment.DefineName(NewPrimitive("list", 1, 1, primitiveList))
 	environment.DefineName(NewPrimitive("length", 1, 1, primitiveLength))
+	environment.DefineName(NewPrimitive("append", 0, 2, primitiveAppend))
+
 }
 
 // installCxrPrimitives adds all the various car/cdr/caar/cdar etc. primitives down to 4-levels of composition.
@@ -299,4 +301,23 @@ func primitiveList(args Pair) interface{} {
 // primitiveLength returns the length of a list.
 func primitiveLength(args Pair) interface{} {
 	return Len(First(args))
+}
+
+// primitiveAppend builds a new list with the second one appended to the end of the first.
+func primitiveAppend(args Pair) (result interface{}) {
+	if args == nil {
+		return nil
+	}
+	list := First(args)
+	if Rest(args) == nil {
+		return list
+	}
+	rest := Second(args)
+	temp := result
+	for Rest(list) != nil {
+		temp = Cons(First(list), temp)
+		list = Rest(list)
+	}
+	SetRest(result, rest)
+	return result
 }

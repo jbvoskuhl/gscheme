@@ -159,3 +159,27 @@ func TestPrimitiveMakeList(t *testing.T) {
 		t.Errorf("Expected make-list to produce a list of 'a' elements.")
 	}
 }
+
+func TestPrimitiveAppend(t *testing.T) {
+	interpreter := New()
+	expression := List(Symbol("append"))
+	result := interpreter.EvalGlobal(expression)
+	if result != nil {
+		t.Errorf("Expected (append) to evaluate to ().")
+	}
+	expression = List(Symbol("append"), nil)
+	result = interpreter.EvalGlobal(expression)
+	if result != nil {
+		t.Errorf("Expected (append ()) to evaluate to ().")
+	}
+	expression = List(Symbol("append"), List(Symbol("quote"), 1, 2), List(Symbol("quote"), 3, 4))
+	result = interpreter.EvalGlobal(expression)
+	if reflect.DeepEqual(result, List(1, 2, 3, 4)) {
+		t.Errorf("Expected (append '(1 2) '(3 4)) to evaluate to (1 2 3 4).")
+	}
+	expression = List(Symbol("append"), List(Symbol("quote"), 1, 2), 3)
+	result = interpreter.EvalGlobal(expression)
+	if reflect.DeepEqual(result, Cons(1, Cons(2, 3))) {
+		t.Errorf("Expected (append '(1 2) 3) to evaluate to (1 2 . 3.")
+	}
+}
