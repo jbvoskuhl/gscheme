@@ -26,3 +26,7 @@ func symbolToStringPrimitive(args Pair) interface{} {
 func stringToSymbolPrimitive(args Pair) interface{} {
 	return Symbol(stringConstraint(First(args)))
 }
+
+func (s Symbol) String() string {
+	return string(s)
+}
