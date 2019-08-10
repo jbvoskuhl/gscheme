@@ -43,3 +43,17 @@ func TestNumber(t *testing.T) {
 		t.Errorf("A number doesn't stringify as 42.42 instead it was: %v.", Stringify(num))
 	}
 }
+
+func TestVector(t *testing.T) {
+	vector := []interface{}{1, 2, 3}
+	if Stringify(vector) != "#(1 2 3)" {
+		t.Errorf("A vector doesn't stringify as #(1 2 3) instead it was: %v.", Stringify(vector))
+	}
+}
+
+func TestByteVector(t *testing.T) {
+	vector := []uint8{1, 2, 3}
+	if Stringify(vector) != "#u8(1 2 3)" {
+		t.Errorf("A bytevector doesn't stringify as #u8(1 2 3) instead it was: %v.", Stringify(vector))
+	}
+}
