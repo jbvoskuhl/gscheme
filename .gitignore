@@ -3,6 +3,7 @@
 # Emacs temp files
 *~
 \#*\#
+.\#*
 
 # Compiled Java class file
 *.class
@@ -10,4 +11,5 @@
 # JetBrains project files
 .idea/*
 
-
+# Bazel 
+bazel-*
