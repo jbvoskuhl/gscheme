@@ -2,7 +2,9 @@
 package gscheme
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 )
 
 // This respresents an instance of the Scheme interpreter.  Instantiate this then evaluate programs here.
@@ -38,11 +40,21 @@ func New() Scheme {
 
 // LoadCode evaluates the code represented as a string to bootstrap the environment.
 func (s *scheme) LoadCode(code string) Scheme {
+	input := NewInputPortFromString(code)
+	s.load(input)
 	return s
 }
 
 // LoadFile loads code from a file to bootstrap the environment.
 func (s *scheme) LoadFile(file string) Scheme {
+	f, err := os.Open(file)
+	if err != nil {
+		Err("Could not open file: "+file, nil)
+		return s
+	}
+	defer f.Close()
+	input := NewInputPort(f)
+	s.load(input)
 	return s
 }
 
@@ -57,7 +69,29 @@ func (s *scheme) LoadFiles(files []string) Scheme {
 // ReadEvalPrintLoop is a convenient option for exploring the gscheme environment outside of its use as an embedded
 // scripting language.
 func (s *scheme) ReadEvalPrintLoop() {
-	fmt.Println("> ")
+	input := NewInputPort(bufio.NewReader(os.Stdin))
+	for {
+		fmt.Print("> ")
+		x := input.Read()
+		if IsEOF(x) {
+			return
+		}
+		result := s.Eval(x, s.environment)
+		if !IsEOF(result) {
+			fmt.Println(Stringify(result))
+		}
+	}
+}
+
+// load reads and evaluates expressions from an InputPort until EOF.
+func (s *scheme) load(input *InputPort) {
+	for {
+		x := input.Read()
+		if IsEOF(x) {
+			return
+		}
+		s.Eval(x, s.environment)
+	}
 }
 
 func (s *scheme) Environment() Environment {
