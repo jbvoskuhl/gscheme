@@ -138,3 +138,86 @@ func TestClosureCapture(t *testing.T) {
 		t.Errorf("Expected (add5 10) to be 15 but was: %v", result)
 	}
 }
+
+func TestIfTrue(t *testing.T) {
+	interpreter := New()
+	// (if #t 1 2) should return 1
+	result := interpreter.EvalGlobal(List(Symbol("if"), true, float64(1), float64(2)))
+	if result != float64(1) {
+		t.Errorf("Expected (if #t 1 2) to be 1 but was: %v", result)
+	}
+}
+
+func TestIfFalse(t *testing.T) {
+	interpreter := New()
+	// (if #f 1 2) should return 2
+	result := interpreter.EvalGlobal(List(Symbol("if"), false, float64(1), float64(2)))
+	if result != float64(2) {
+		t.Errorf("Expected (if #f 1 2) to be 2 but was: %v", result)
+	}
+}
+
+func TestIfNoAlternate(t *testing.T) {
+	interpreter := New()
+	// (if #f 1) should return nil when condition is false and no alternate
+	result := interpreter.EvalGlobal(List(Symbol("if"), false, float64(1)))
+	if result != nil {
+		t.Errorf("Expected (if #f 1) to be nil but was: %v", result)
+	}
+}
+
+func TestIfTruthyValue(t *testing.T) {
+	interpreter := New()
+	// (if 0 1 2) should return 1 (0 is truthy in Scheme)
+	result := interpreter.EvalGlobal(List(Symbol("if"), float64(0), float64(1), float64(2)))
+	if result != float64(1) {
+		t.Errorf("Expected (if 0 1 2) to be 1 but was: %v", result)
+	}
+}
+
+func TestIfNilIsTruthy(t *testing.T) {
+	interpreter := New()
+	// (if '() 1 2) should return 1 (empty list is truthy in Scheme)
+	result := interpreter.EvalGlobal(List(Symbol("if"),
+		List(Symbol("quote"), nil), float64(1), float64(2)))
+	if result != float64(1) {
+		t.Errorf("Expected (if '() 1 2) to be 1 but was: %v", result)
+	}
+}
+
+func TestIfWithExpression(t *testing.T) {
+	interpreter := New()
+	// (if (not #f) (* 2 3) (+ 1 1)) should return 6
+	result := interpreter.EvalGlobal(List(Symbol("if"),
+		List(Symbol("not"), false),
+		List(Symbol("*"), float64(2), float64(3)),
+		List(Symbol("+"), float64(1), float64(1))))
+	if result != float64(6) {
+		t.Errorf("Expected (if (not #f) (* 2 3) (+ 1 1)) to be 6 but was: %v", result)
+	}
+}
+
+func TestIfOnlyEvaluatesSelectedBranch(t *testing.T) {
+	interpreter := New()
+	// Define a counter
+	interpreter.EvalGlobal(List(Symbol("define"), Symbol("x"), float64(0)))
+	// (if #t (define x 1) (define x 2)) should only set x to 1
+	interpreter.EvalGlobal(List(Symbol("if"), true,
+		List(Symbol("define"), Symbol("x"), float64(1)),
+		List(Symbol("define"), Symbol("x"), float64(2))))
+	result := interpreter.EvalGlobal(Symbol("x"))
+	if result != float64(1) {
+		t.Errorf("Expected x to be 1 but was: %v", result)
+	}
+}
+
+func TestIfNestedConditional(t *testing.T) {
+	interpreter := New()
+	// (if #t (if #f 1 2) 3) should return 2
+	result := interpreter.EvalGlobal(List(Symbol("if"), true,
+		List(Symbol("if"), false, float64(1), float64(2)),
+		float64(3)))
+	if result != float64(2) {
+		t.Errorf("Expected nested if to be 2 but was: %v", result)
+	}
+}

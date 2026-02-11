@@ -30,6 +30,7 @@ func installSpecialForms(environment Environment) {
 	environment.DefineName(NewSpecialForm(Symbol("define"), defineSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("lambda"), lambdaSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("begin"), beginSpecialForm))
+	environment.DefineName(NewSpecialForm(Symbol("if"), ifSpecialForm))
 }
 
 // quoteSpecialForm implements quote from Scheme and returns the first argument unevaluated.
@@ -86,4 +87,16 @@ func beginSpecialForm(interpreter Scheme, args Pair, environment Environment) in
 		args = RestPair(args)
 	}
 	return result
+}
+
+// ifSpecialForm implements if which evaluates a condition and returns one of two branches.
+// Form: (if test consequent) or (if test consequent alternate)
+// If test is true (anything except #f), evaluates and returns consequent.
+// Otherwise, evaluates and returns alternate (or nil if not provided).
+func ifSpecialForm(interpreter Scheme, args Pair, environment Environment) interface{} {
+	test := interpreter.Eval(First(args), environment)
+	if Truth(test) {
+		return interpreter.Eval(Second(args), environment)
+	}
+	return interpreter.Eval(Third(args), environment)
 }
