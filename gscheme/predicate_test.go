@@ -1,6 +1,9 @@
 package gscheme
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestEq(t *testing.T) {
 	scheme := New()
@@ -320,5 +323,163 @@ func TestPortP(t *testing.T) {
 	result = scheme.EvalGlobal(List(Symbol("port?"), float64(42)))
 	if result != false {
 		t.Errorf("Expected (port? 42) to be false but was: %v", result)
+	}
+}
+
+func TestRationalP(t *testing.T) {
+	scheme := New()
+	// Real numbers are rational
+	result := scheme.EvalGlobal(List(Symbol("rational?"), float64(3.14)))
+	if result != true {
+		t.Errorf("Expected (rational? 3.14) to be true but was: %v", result)
+	}
+
+	// Complex with zero imaginary part is rational
+	scheme.Environment().Define(Symbol("c"), complex(5, 0))
+	result = scheme.EvalGlobal(List(Symbol("rational?"), Symbol("c")))
+	if result != true {
+		t.Errorf("Expected (rational? 5+0i) to be true but was: %v", result)
+	}
+
+	// Complex with non-zero imaginary part is not rational
+	scheme.Environment().Define(Symbol("c2"), complex(3, 4))
+	result = scheme.EvalGlobal(List(Symbol("rational?"), Symbol("c2")))
+	if result != false {
+		t.Errorf("Expected (rational? 3+4i) to be false but was: %v", result)
+	}
+}
+
+func TestExactP(t *testing.T) {
+	scheme := New()
+	// In gscheme, all numbers are inexact
+	result := scheme.EvalGlobal(List(Symbol("exact?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (exact? 42) to be false but was: %v", result)
+	}
+
+	scheme.Environment().Define(Symbol("c"), complex(3, 4))
+	result = scheme.EvalGlobal(List(Symbol("exact?"), Symbol("c")))
+	if result != false {
+		t.Errorf("Expected (exact? 3+4i) to be false but was: %v", result)
+	}
+}
+
+func TestInexactP(t *testing.T) {
+	scheme := New()
+	// All numbers in gscheme are inexact
+	result := scheme.EvalGlobal(List(Symbol("inexact?"), float64(42)))
+	if result != true {
+		t.Errorf("Expected (inexact? 42) to be true but was: %v", result)
+	}
+
+	scheme.Environment().Define(Symbol("c"), complex(3, 4))
+	result = scheme.EvalGlobal(List(Symbol("inexact?"), Symbol("c")))
+	if result != true {
+		t.Errorf("Expected (inexact? 3+4i) to be true but was: %v", result)
+	}
+
+	// Non-numbers are not inexact
+	result = scheme.EvalGlobal(List(Symbol("inexact?"), Symbol("x")))
+	if result != false {
+		t.Errorf("Expected (inexact? 'x) to be false but was: %v", result)
+	}
+}
+
+func TestExactIntegerP(t *testing.T) {
+	scheme := New()
+	// In gscheme, there are no exact integers
+	result := scheme.EvalGlobal(List(Symbol("exact-integer?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (exact-integer? 42) to be false but was: %v", result)
+	}
+}
+
+func TestFiniteP(t *testing.T) {
+	scheme := New()
+	// Regular numbers are finite
+	result := scheme.EvalGlobal(List(Symbol("finite?"), float64(42)))
+	if result != true {
+		t.Errorf("Expected (finite? 42) to be true but was: %v", result)
+	}
+
+	// Infinity is not finite
+	scheme.Environment().Define(Symbol("inf"), math.Inf(1))
+	result = scheme.EvalGlobal(List(Symbol("finite?"), Symbol("inf")))
+	if result != false {
+		t.Errorf("Expected (finite? +inf) to be false but was: %v", result)
+	}
+
+	// NaN is not finite
+	scheme.Environment().Define(Symbol("nan"), math.NaN())
+	result = scheme.EvalGlobal(List(Symbol("finite?"), Symbol("nan")))
+	if result != false {
+		t.Errorf("Expected (finite? nan) to be false but was: %v", result)
+	}
+
+	// Complex numbers can be finite
+	scheme.Environment().Define(Symbol("c"), complex(3, 4))
+	result = scheme.EvalGlobal(List(Symbol("finite?"), Symbol("c")))
+	if result != true {
+		t.Errorf("Expected (finite? 3+4i) to be true but was: %v", result)
+	}
+}
+
+func TestInfiniteP(t *testing.T) {
+	scheme := New()
+	// Regular numbers are not infinite
+	result := scheme.EvalGlobal(List(Symbol("infinite?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (infinite? 42) to be false but was: %v", result)
+	}
+
+	// Positive infinity
+	scheme.Environment().Define(Symbol("inf"), math.Inf(1))
+	result = scheme.EvalGlobal(List(Symbol("infinite?"), Symbol("inf")))
+	if result != true {
+		t.Errorf("Expected (infinite? +inf) to be true but was: %v", result)
+	}
+
+	// Negative infinity
+	scheme.Environment().Define(Symbol("ninf"), math.Inf(-1))
+	result = scheme.EvalGlobal(List(Symbol("infinite?"), Symbol("ninf")))
+	if result != true {
+		t.Errorf("Expected (infinite? -inf) to be true but was: %v", result)
+	}
+
+	// Complex with infinite component
+	scheme.Environment().Define(Symbol("cinf"), complex(math.Inf(1), 0))
+	result = scheme.EvalGlobal(List(Symbol("infinite?"), Symbol("cinf")))
+	if result != true {
+		t.Errorf("Expected (infinite? inf+0i) to be true but was: %v", result)
+	}
+}
+
+func TestNanP(t *testing.T) {
+	scheme := New()
+	// Regular numbers are not NaN
+	result := scheme.EvalGlobal(List(Symbol("nan?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (nan? 42) to be false but was: %v", result)
+	}
+
+	// NaN is NaN
+	scheme.Environment().Define(Symbol("nan"), math.NaN())
+	result = scheme.EvalGlobal(List(Symbol("nan?"), Symbol("nan")))
+	if result != true {
+		t.Errorf("Expected (nan? nan) to be true but was: %v", result)
+	}
+
+	// Infinity is not NaN
+	scheme.Environment().Define(Symbol("inf"), math.Inf(1))
+	result = scheme.EvalGlobal(List(Symbol("nan?"), Symbol("inf")))
+	if result != false {
+		t.Errorf("Expected (nan? +inf) to be false but was: %v", result)
+	}
+
+	// Complex with NaN component
+	scheme.Environment().Define(Symbol("cnan"), complex(math.NaN(), 0))
+	result = scheme.EvalGlobal(List(Symbol("nan?"), Symbol("cnan")))
+	if result != true {
+		t.Errorf("Expected (nan? nan+0i) to be true but was: %v", result)
 	}
 }

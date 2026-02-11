@@ -26,6 +26,13 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("negative?", 1, 1, primitiveNegativeP))
 	environment.DefineName(NewPrimitive("odd?", 1, 1, primitiveOddP))
 	environment.DefineName(NewPrimitive("even?", 1, 1, primitiveEvenP))
+	environment.DefineName(NewPrimitive("rational?", 1, 1, primitiveRationalP))
+	environment.DefineName(NewPrimitive("exact?", 1, 1, primitiveExactP))
+	environment.DefineName(NewPrimitive("inexact?", 1, 1, primitiveInexactP))
+	environment.DefineName(NewPrimitive("exact-integer?", 1, 1, primitiveExactIntegerP))
+	environment.DefineName(NewPrimitive("finite?", 1, 1, primitiveFiniteP))
+	environment.DefineName(NewPrimitive("infinite?", 1, 1, primitiveInfiniteP))
+	environment.DefineName(NewPrimitive("nan?", 1, 1, primitiveNanP))
 }
 
 // primitiveEq implements eq? which tests for identity (pointer equality).
@@ -112,8 +119,10 @@ func equal(x, y interface{}) bool {
 
 // primitiveNumberP implements number? which tests if the argument is a number.
 func primitiveNumberP(args Pair) interface{} {
-	_, ok := First(args).(float64)
-	return ok
+	x := First(args)
+	_, isFloat := x.(float64)
+	_, isComplex := x.(complex128)
+	return isFloat || isComplex
 }
 
 // primitiveIntegerP implements integer? which tests if the argument is an integer.
@@ -200,4 +209,81 @@ func primitiveInputPortP(args Pair) interface{} {
 func primitivePortP(args Pair) interface{} {
 	_, ok := First(args).(*InputPort)
 	return ok
+}
+
+// primitiveRationalP implements rational? which tests if the argument is a rational number.
+// In gscheme, all real numbers are represented as float64, so rational? is equivalent to real?.
+func primitiveRationalP(args Pair) interface{} {
+	x := First(args)
+	if _, ok := x.(float64); ok {
+		return true
+	}
+	if c, ok := x.(complex128); ok {
+		return imag(c) == 0
+	}
+	return false
+}
+
+// primitiveExactP implements exact? which tests if the argument is an exact number.
+// In gscheme, all numbers are inexact (float64/complex128), so this always returns false.
+func primitiveExactP(args Pair) interface{} {
+	x := First(args)
+	_, isFloat := x.(float64)
+	_, isComplex := x.(complex128)
+	if isFloat || isComplex {
+		return false // gscheme only has inexact numbers
+	}
+	return false
+}
+
+// primitiveInexactP implements inexact? which tests if the argument is an inexact number.
+// In gscheme, all numbers are inexact (float64/complex128).
+func primitiveInexactP(args Pair) interface{} {
+	x := First(args)
+	_, isFloat := x.(float64)
+	_, isComplex := x.(complex128)
+	return isFloat || isComplex
+}
+
+// primitiveExactIntegerP implements exact-integer? which tests if the argument is an exact integer.
+// In gscheme, all numbers are inexact, so this always returns false.
+func primitiveExactIntegerP(args Pair) interface{} {
+	return false // gscheme only has inexact numbers
+}
+
+// primitiveFiniteP implements finite? which tests if the argument is a finite number.
+func primitiveFiniteP(args Pair) interface{} {
+	x := First(args)
+	if f, ok := x.(float64); ok {
+		return !math.IsInf(f, 0) && !math.IsNaN(f)
+	}
+	if c, ok := x.(complex128); ok {
+		r, i := real(c), imag(c)
+		return !math.IsInf(r, 0) && !math.IsNaN(r) && !math.IsInf(i, 0) && !math.IsNaN(i)
+	}
+	return false
+}
+
+// primitiveInfiniteP implements infinite? which tests if the argument is infinite.
+func primitiveInfiniteP(args Pair) interface{} {
+	x := First(args)
+	if f, ok := x.(float64); ok {
+		return math.IsInf(f, 0)
+	}
+	if c, ok := x.(complex128); ok {
+		return math.IsInf(real(c), 0) || math.IsInf(imag(c), 0)
+	}
+	return false
+}
+
+// primitiveNanP implements nan? which tests if the argument is NaN (not a number).
+func primitiveNanP(args Pair) interface{} {
+	x := First(args)
+	if f, ok := x.(float64); ok {
+		return math.IsNaN(f)
+	}
+	if c, ok := x.(complex128); ok {
+		return math.IsNaN(real(c)) || math.IsNaN(imag(c))
+	}
+	return false
 }
