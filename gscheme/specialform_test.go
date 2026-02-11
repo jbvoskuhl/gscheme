@@ -221,3 +221,127 @@ func TestIfNestedConditional(t *testing.T) {
 		t.Errorf("Expected nested if to be 2 but was: %v", result)
 	}
 }
+
+func TestSetBasic(t *testing.T) {
+	interpreter := New()
+	// (define x 1)
+	interpreter.EvalGlobal(List(Symbol("define"), Symbol("x"), float64(1)))
+	// (set! x 2)
+	interpreter.EvalGlobal(List(Symbol("set!"), Symbol("x"), float64(2)))
+	// x should now be 2
+	result := interpreter.EvalGlobal(Symbol("x"))
+	if result != float64(2) {
+		t.Errorf("Expected x to be 2 after set! but was: %v", result)
+	}
+}
+
+func TestSetReturnsValue(t *testing.T) {
+	interpreter := New()
+	interpreter.EvalGlobal(List(Symbol("define"), Symbol("x"), float64(1)))
+	// set! should return the new value
+	result := interpreter.EvalGlobal(List(Symbol("set!"), Symbol("x"), float64(42)))
+	if result != float64(42) {
+		t.Errorf("Expected set! to return 42 but was: %v", result)
+	}
+}
+
+func TestSetInClosure(t *testing.T) {
+	interpreter := New()
+	// Create a counter using closures
+	// (define counter 0)
+	interpreter.EvalGlobal(List(Symbol("define"), Symbol("counter"), float64(0)))
+	// (define (increment) (set! counter (+ counter 1)))
+	interpreter.EvalGlobal(List(Symbol("define"),
+		List(Symbol("increment")),
+		List(Symbol("set!"), Symbol("counter"),
+			List(Symbol("+"), Symbol("counter"), float64(1)))))
+	// (increment) three times
+	interpreter.EvalGlobal(List(Symbol("increment")))
+	interpreter.EvalGlobal(List(Symbol("increment")))
+	interpreter.EvalGlobal(List(Symbol("increment")))
+	// counter should be 3
+	result := interpreter.EvalGlobal(Symbol("counter"))
+	if result != float64(3) {
+		t.Errorf("Expected counter to be 3 but was: %v", result)
+	}
+}
+
+func TestCondBasic(t *testing.T) {
+	interpreter := New()
+	// (cond (#f 1) (#t 2) (else 3)) should return 2
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(false, float64(1)),
+		List(true, float64(2)),
+		List(Symbol("else"), float64(3))))
+	if result != float64(2) {
+		t.Errorf("Expected (cond (#f 1) (#t 2) (else 3)) to be 2 but was: %v", result)
+	}
+}
+
+func TestCondElse(t *testing.T) {
+	interpreter := New()
+	// (cond (#f 1) (#f 2) (else 3)) should return 3
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(false, float64(1)),
+		List(false, float64(2)),
+		List(Symbol("else"), float64(3))))
+	if result != float64(3) {
+		t.Errorf("Expected cond with else to return 3 but was: %v", result)
+	}
+}
+
+func TestCondNoMatch(t *testing.T) {
+	interpreter := New()
+	// (cond (#f 1) (#f 2)) should return #f when nothing matches
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(false, float64(1)),
+		List(false, float64(2))))
+	if result != false {
+		t.Errorf("Expected cond with no match to return #f but was: %v", result)
+	}
+}
+
+func TestCondMultipleExpressions(t *testing.T) {
+	interpreter := New()
+	// (cond (#t 1 2 3)) should return 3 (last expression)
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(true, float64(1), float64(2), float64(3))))
+	if result != float64(3) {
+		t.Errorf("Expected cond with multiple expressions to return 3 but was: %v", result)
+	}
+}
+
+func TestCondArrow(t *testing.T) {
+	interpreter := New()
+	// (cond (5 => (lambda (x) (* x 2)))) should return 10
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(float64(5), Symbol("=>"),
+			List(Symbol("lambda"), List(Symbol("x")),
+				List(Symbol("*"), Symbol("x"), float64(2))))))
+	if result != float64(10) {
+		t.Errorf("Expected cond with => to return 10 but was: %v", result)
+	}
+}
+
+func TestCondTestOnly(t *testing.T) {
+	interpreter := New()
+	// (cond (5)) should return 5 (the test value itself)
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(float64(5))))
+	if result != float64(5) {
+		t.Errorf("Expected (cond (5)) to return 5 but was: %v", result)
+	}
+}
+
+func TestCondWithExpressions(t *testing.T) {
+	interpreter := New()
+	// (cond ((> 3 2) 'greater) ((< 3 2) 'less)) should return 'greater
+	result := interpreter.EvalGlobal(List(Symbol("cond"),
+		List(List(Symbol(">"), float64(3), float64(2)),
+			List(Symbol("quote"), Symbol("greater"))),
+		List(List(Symbol("<"), float64(3), float64(2)),
+			List(Symbol("quote"), Symbol("less")))))
+	if result != Symbol("greater") {
+		t.Errorf("Expected cond to return 'greater but was: %v", result)
+	}
+}

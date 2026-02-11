@@ -74,11 +74,19 @@ func (e environment) DefineName(name Namer) interface{} {
 	return e.Define(Symbol(name.Name()), name)
 }
 
-// Set assigns a symbol a value in this environment if it doesn't already exist.
-func (e environment) Set(symbol Symbol, value interface{}) bool {
-	_, ok := e.Lookup(symbol)
-	e.bindings[symbol] = value
-	return ok
+// Set modifies an existing binding in this environment or a parent environment.
+// Returns true if the binding was found and updated, false if the variable is unbound.
+func (e *environment) Set(symbol Symbol, value interface{}) bool {
+	// Check if bound locally
+	if _, ok := e.bindings[symbol]; ok {
+		e.bindings[symbol] = value
+		return true
+	}
+	// If not, try parent
+	if e.parent != nil {
+		return e.parent.Set(symbol, value)
+	}
+	return false
 }
 
 // Lookup finds the value bound o a given symbol if it exists.

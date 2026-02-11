@@ -28,9 +28,11 @@ func (s specialForm) Apply(interpreter Scheme, args Pair, environment Environmen
 func installSpecialForms(environment Environment) {
 	environment.DefineName(NewSpecialForm(Symbol("quote"), quoteSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("define"), defineSpecialForm))
+	environment.DefineName(NewSpecialForm(Symbol("set!"), setSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("lambda"), lambdaSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("begin"), beginSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("if"), ifSpecialForm))
+	environment.DefineName(NewSpecialForm(Symbol("cond"), condSpecialForm))
 }
 
 // quoteSpecialForm implements quote from Scheme and returns the first argument unevaluated.
@@ -99,4 +101,65 @@ func ifSpecialForm(interpreter Scheme, args Pair, environment Environment) inter
 		return interpreter.Eval(Second(args), environment)
 	}
 	return interpreter.Eval(Third(args), environment)
+}
+
+// setSpecialForm implements set! which modifies an existing variable binding.
+// Form: (set! name value)
+// Returns the new value, or an error if the variable is unbound.
+func setSpecialForm(interpreter Scheme, args Pair, environment Environment) interface{} {
+	name, ok := First(args).(Symbol)
+	if !ok {
+		return Err("set!: expected symbol", List(First(args)))
+	}
+	value := interpreter.Eval(Second(args), environment)
+	if !environment.Set(name, value) {
+		return Err("set!: unbound variable", List(name))
+	}
+	return value
+}
+
+// condSpecialForm implements cond which is a multi-way conditional.
+// Form: (cond clause1 clause2 ...)
+// Each clause is (test expr1 expr2 ...) or (test => proc) or (else expr1 expr2 ...)
+// Evaluates tests in order until one is true, then evaluates its expressions.
+func condSpecialForm(interpreter Scheme, args Pair, environment Environment) interface{} {
+	for args != nil {
+		clause := First(args)
+		clausePair, ok := clause.(Pair)
+		if !ok {
+			return Err("cond: bad clause", List(clause))
+		}
+
+		test := First(clausePair)
+		var result interface{}
+
+		// Check for 'else' clause
+		if test == Symbol("else") {
+			result = true
+		} else {
+			result = interpreter.Eval(test, environment)
+		}
+
+		if Truth(result) {
+			rest := Rest(clausePair)
+			// If no expressions after test, return the test result
+			if rest == nil {
+				return result
+			}
+			// Check for => syntax: (test => proc)
+			if First(rest) == Symbol("=>") {
+				proc := interpreter.Eval(Second(rest), environment)
+				if applyer, ok := proc.(Applyer); ok {
+					return applyer.Apply(interpreter, List(result), environment)
+				}
+				return Err("cond: => requires a procedure", List(proc))
+			}
+			// Otherwise evaluate all expressions and return the last
+			return beginSpecialForm(interpreter, RestPair(clausePair), environment)
+		}
+
+		args = RestPair(args)
+	}
+	// No clause matched
+	return false
 }
