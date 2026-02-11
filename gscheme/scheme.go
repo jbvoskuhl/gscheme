@@ -35,6 +35,7 @@ func New() Scheme {
 	installBooleanPrimitives(result.environment)
 	installCharacterPrimitives(result.environment)
 	installListPrimitives(result.environment)
+	installPredicatePrimitives(result.environment)
 	return result
 }
 

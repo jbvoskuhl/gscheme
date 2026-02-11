@@ -6,6 +6,11 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("+", minArgs, maxArgs, plus))
 	environment.DefineName(NewPrimitive("-", 1, maxArgs, minus))
 	environment.DefineName(NewPrimitive("/", 1, maxArgs, divide))
+	environment.DefineName(NewPrimitive("=", 2, maxArgs, numEqual))
+	environment.DefineName(NewPrimitive("<", 2, maxArgs, numLessThan))
+	environment.DefineName(NewPrimitive(">", 2, maxArgs, numGreaterThan))
+	environment.DefineName(NewPrimitive("<=", 2, maxArgs, numLessThanOrEqual))
+	environment.DefineName(NewPrimitive(">=", 2, maxArgs, numGreaterThanOrEqual))
 }
 
 func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(Pair) interface{} {
@@ -54,3 +59,28 @@ func divide(args Pair) interface{} {
 		return reduce(binaryDivide, Num(First(args)))(RestPair(args))
 	}
 }
+
+// numCompare compares adjacent pairs of numbers using the given comparison function.
+// Returns true if all adjacent pairs satisfy the comparison, false otherwise.
+// For example, (< 1 2 3) checks 1 < 2 and 2 < 3.
+func numCompare(compare func(x, y float64) bool) func(Pair) interface{} {
+	return func(args Pair) interface{} {
+		x := Num(First(args))
+		args = RestPair(args)
+		for args != nil {
+			y := Num(First(args))
+			if !compare(x, y) {
+				return false
+			}
+			x = y
+			args = RestPair(args)
+		}
+		return true
+	}
+}
+
+var numEqual = numCompare(func(x, y float64) bool { return x == y })
+var numLessThan = numCompare(func(x, y float64) bool { return x < y })
+var numGreaterThan = numCompare(func(x, y float64) bool { return x > y })
+var numLessThanOrEqual = numCompare(func(x, y float64) bool { return x <= y })
+var numGreaterThanOrEqual = numCompare(func(x, y float64) bool { return x >= y })
