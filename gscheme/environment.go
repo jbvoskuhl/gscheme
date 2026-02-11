@@ -29,6 +29,40 @@ func NewChildEnvironment(parent Environment) Environment {
 	return &environment{bindings: make(map[Symbol]interface{}), parent: parent}
 }
 
+// NewChildEnvironmentWithBindings creates a new environment with parameters bound to values.
+// Params can be:
+//   - A Pair (list) of symbols: each symbol is bound to the corresponding argument
+//   - A single Symbol: the symbol is bound to the entire argument list (variadic)
+//   - nil: no parameters to bind
+func NewChildEnvironmentWithBindings(params interface{}, args Pair, parent Environment) Environment {
+	env := NewChildEnvironment(parent)
+	bindParams(env, params, args)
+	return env
+}
+
+// bindParams binds parameter names to argument values in the given environment.
+func bindParams(env Environment, params interface{}, args Pair) {
+	for {
+		switch p := params.(type) {
+		case nil:
+			return
+		case Symbol:
+			// Rest parameter: bind the symbol to remaining args
+			env.Define(p, args)
+			return
+		case Pair:
+			// Bind first param to first arg, continue with rest
+			if sym, ok := First(p).(Symbol); ok {
+				env.Define(sym, First(args))
+			}
+			params = Rest(p)
+			args = RestPair(args)
+		default:
+			return
+		}
+	}
+}
+
 // Define creates or silently overwrites a binding.
 func (e environment) Define(symbol Symbol, value interface{}) interface{} {
 	e.bindings[symbol] = value
