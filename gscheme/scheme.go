@@ -37,6 +37,8 @@ func New() Scheme {
 	installListPrimitives(result.environment)
 	installPredicatePrimitives(result.environment)
 	installComplexPrimitives(result.environment)
+	installHigherOrderPrimitives(result.environment)
+	result.loadPrimitivesScheme()
 	return result
 }
 
