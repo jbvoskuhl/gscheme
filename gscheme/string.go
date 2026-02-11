@@ -25,6 +25,8 @@ func Stringify(object interface{}) string {
 		return fmt.Sprintf("\"%s\"", value)
 	case Symbol:
 		return string(value)
+	case complex128:
+		return stringifyComplex(value)
 	case fmt.Stringer:
 		return value.String()
 	default:
@@ -49,4 +51,28 @@ func stringifyVector(vector []interface{}) string {
 		items[index] = Stringify(item)
 	}
 	return fmt.Sprint("#(", strings.Join(items, " "), ")")
+}
+
+// stringifyComplex formats a complex number in Scheme notation.
+func stringifyComplex(c complex128) string {
+	r, i := real(c), imag(c)
+	if i == 0 {
+		return fmt.Sprint(r)
+	}
+	if r == 0 {
+		if i == 1 {
+			return "+i"
+		} else if i == -1 {
+			return "-i"
+		}
+		return fmt.Sprintf("%vi", i)
+	}
+	if i == 1 {
+		return fmt.Sprintf("%v+i", r)
+	} else if i == -1 {
+		return fmt.Sprintf("%v-i", r)
+	} else if i > 0 {
+		return fmt.Sprintf("%v+%vi", r, i)
+	}
+	return fmt.Sprintf("%v%vi", r, i)
 }

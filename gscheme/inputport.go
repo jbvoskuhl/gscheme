@@ -308,9 +308,10 @@ func (p *InputPort) nextToken() interface{} {
 		s := p.buff.String()
 
 		// Try to parse as a number if it starts with a digit, +, -, or .
-		if c == '.' || c == '+' || c == '-' || (c >= '0' && c <= '9') {
-			if f, err := strconv.ParseFloat(s, 64); err == nil {
-				return f
+		// Also check for bare "i" which is the imaginary unit
+		if c == '.' || c == '+' || c == '-' || c == 'i' || c == 'I' || (c >= '0' && c <= '9') {
+			if num := parseNumber(s); num != nil {
+				return num
 			}
 		}
 		// Otherwise it's a symbol (lowercase and intern)
@@ -326,6 +327,78 @@ func listToVector(list interface{}) []interface{} {
 		list = pair.Rest()
 	}
 	return result
+}
+
+// parseNumber attempts to parse a string as a number (real or complex).
+// Returns nil if the string is not a valid number.
+func parseNumber(s string) interface{} {
+	s = strings.ToLower(s)
+
+	// Check for pure imaginary: +i, -i, or just i
+	if s == "i" || s == "+i" {
+		return complex(0, 1)
+	}
+	if s == "-i" {
+		return complex(0, -1)
+	}
+
+	// Check if it ends with 'i' (complex number)
+	if strings.HasSuffix(s, "i") {
+		s = s[:len(s)-1] // Remove trailing 'i'
+
+		// Find the last + or - that's not at the start and not part of exponent
+		splitIdx := -1
+		for i := len(s) - 1; i > 0; i-- {
+			if (s[i] == '+' || s[i] == '-') && s[i-1] != 'e' && s[i-1] != 'E' {
+				splitIdx = i
+				break
+			}
+		}
+
+		if splitIdx == -1 {
+			// Pure imaginary like "5i" or "-3i"
+			if s == "" || s == "+" {
+				return complex(0, 1)
+			}
+			if s == "-" {
+				return complex(0, -1)
+			}
+			if imag, err := strconv.ParseFloat(s, 64); err == nil {
+				return complex(0, imag)
+			}
+			return nil
+		}
+
+		// Complex with real and imaginary parts like "3+4i" or "3-4i"
+		realStr := s[:splitIdx]
+		imagStr := s[splitIdx:]
+
+		realPart, err := strconv.ParseFloat(realStr, 64)
+		if err != nil {
+			return nil
+		}
+
+		var imagPart float64
+		if imagStr == "+" {
+			imagPart = 1
+		} else if imagStr == "-" {
+			imagPart = -1
+		} else {
+			imagPart, err = strconv.ParseFloat(imagStr, 64)
+			if err != nil {
+				return nil
+			}
+		}
+
+		return complex(realPart, imagPart)
+	}
+
+	// Try to parse as a regular float
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+
+	return nil
 }
 
 // warn prints a warning message. In a full implementation, this would

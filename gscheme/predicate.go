@@ -14,6 +14,11 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("integer?", 1, 1, primitiveIntegerP))
 	environment.DefineName(NewPrimitive("string?", 1, 1, primitiveStringP))
 	environment.DefineName(NewPrimitive("procedure?", 1, 1, primitiveProcedureP))
+	environment.DefineName(NewPrimitive("vector?", 1, 1, primitiveVectorP))
+	environment.DefineName(NewPrimitive("bytevector?", 1, 1, primitiveBytevectorP))
+	environment.DefineName(NewPrimitive("eof-object?", 1, 1, primitiveEofObjectP))
+	environment.DefineName(NewPrimitive("input-port?", 1, 1, primitiveInputPortP))
+	environment.DefineName(NewPrimitive("port?", 1, 1, primitivePortP))
 
 	// Number predicates
 	environment.DefineName(NewPrimitive("zero?", 1, 1, primitiveZeroP))
@@ -166,4 +171,33 @@ func primitiveEvenP(args Pair) interface{} {
 		return Err("even?: expected number", args)
 	}
 	return int64(math.Abs(x))%2 == 0
+}
+
+// primitiveVectorP implements vector? which tests if the argument is a vector.
+func primitiveVectorP(args Pair) interface{} {
+	_, ok := First(args).([]interface{})
+	return ok
+}
+
+// primitiveBytevectorP implements bytevector? which tests if the argument is a bytevector.
+func primitiveBytevectorP(args Pair) interface{} {
+	_, ok := First(args).([]uint8)
+	return ok
+}
+
+// primitiveEofObjectP implements eof-object? which tests if the argument is an EOF object.
+func primitiveEofObjectP(args Pair) interface{} {
+	return IsEOF(First(args))
+}
+
+// primitiveInputPortP implements input-port? which tests if the argument is an input port.
+func primitiveInputPortP(args Pair) interface{} {
+	_, ok := First(args).(*InputPort)
+	return ok
+}
+
+// primitivePortP implements port? which tests if the argument is any kind of port.
+func primitivePortP(args Pair) interface{} {
+	_, ok := First(args).(*InputPort)
+	return ok
 }

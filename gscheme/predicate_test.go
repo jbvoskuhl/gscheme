@@ -229,3 +229,96 @@ func TestEvenP(t *testing.T) {
 		t.Errorf("Expected (even? 0) to be true but was: %v", result)
 	}
 }
+
+func TestVectorP(t *testing.T) {
+	scheme := New()
+	// Test with a vector
+	vec := []interface{}{float64(1), float64(2), float64(3)}
+	scheme.Environment().Define(Symbol("v"), vec)
+	result := scheme.EvalGlobal(List(Symbol("vector?"), Symbol("v")))
+	if result != true {
+		t.Errorf("Expected (vector? v) to be true but was: %v", result)
+	}
+
+	// Test with non-vector
+	result = scheme.EvalGlobal(List(Symbol("vector?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (vector? 42) to be false but was: %v", result)
+	}
+
+	// Test with list (not a vector)
+	result = scheme.EvalGlobal(List(Symbol("vector?"),
+		List(Symbol("quote"), List(float64(1), float64(2)))))
+	if result != false {
+		t.Errorf("Expected (vector? '(1 2)) to be false but was: %v", result)
+	}
+}
+
+func TestBytevectorP(t *testing.T) {
+	scheme := New()
+	// Test with a bytevector
+	bv := []uint8{1, 2, 3}
+	scheme.Environment().Define(Symbol("bv"), bv)
+	result := scheme.EvalGlobal(List(Symbol("bytevector?"), Symbol("bv")))
+	if result != true {
+		t.Errorf("Expected (bytevector? bv) to be true but was: %v", result)
+	}
+
+	// Test with regular vector (not a bytevector)
+	vec := []interface{}{float64(1), float64(2)}
+	scheme.Environment().Define(Symbol("v"), vec)
+	result = scheme.EvalGlobal(List(Symbol("bytevector?"), Symbol("v")))
+	if result != false {
+		t.Errorf("Expected (bytevector? v) to be false for regular vector but was: %v", result)
+	}
+}
+
+func TestEofObjectP(t *testing.T) {
+	scheme := New()
+	// Test with EOF object
+	scheme.Environment().Define(Symbol("eof"), EOF)
+	result := scheme.EvalGlobal(List(Symbol("eof-object?"), Symbol("eof")))
+	if result != true {
+		t.Errorf("Expected (eof-object? eof) to be true but was: %v", result)
+	}
+
+	// Test with non-EOF
+	result = scheme.EvalGlobal(List(Symbol("eof-object?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (eof-object? 42) to be false but was: %v", result)
+	}
+}
+
+func TestInputPortP(t *testing.T) {
+	scheme := New()
+	// Test with input port
+	port := NewInputPortFromString("test")
+	scheme.Environment().Define(Symbol("port"), port)
+	result := scheme.EvalGlobal(List(Symbol("input-port?"), Symbol("port")))
+	if result != true {
+		t.Errorf("Expected (input-port? port) to be true but was: %v", result)
+	}
+
+	// Test with non-port
+	result = scheme.EvalGlobal(List(Symbol("input-port?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (input-port? 42) to be false but was: %v", result)
+	}
+}
+
+func TestPortP(t *testing.T) {
+	scheme := New()
+	// Test with input port
+	port := NewInputPortFromString("test")
+	scheme.Environment().Define(Symbol("port"), port)
+	result := scheme.EvalGlobal(List(Symbol("port?"), Symbol("port")))
+	if result != true {
+		t.Errorf("Expected (port? port) to be true but was: %v", result)
+	}
+
+	// Test with non-port
+	result = scheme.EvalGlobal(List(Symbol("port?"), float64(42)))
+	if result != false {
+		t.Errorf("Expected (port? 42) to be false but was: %v", result)
+	}
+}

@@ -13,6 +13,13 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive(">=", 2, maxArgs, numGreaterThanOrEqual))
 }
 
+// isComplex returns true if x is a complex128
+func isComplex(x interface{}) bool {
+	_, ok := x.(complex128)
+	return ok
+}
+
+// reduce applies a binary operation across a list of arguments
 func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(Pair) interface{} {
 	return func(args Pair) interface{} {
 		result := unary
@@ -25,18 +32,30 @@ func reduce(binary func(x, y interface{}) interface{}, unary interface{}) func(P
 }
 
 func binaryTimes(x, y interface{}) interface{} {
+	if isComplex(x) || isComplex(y) {
+		return SimplifyComplex(ToComplex(x) * ToComplex(y))
+	}
 	return Num(x) * Num(y)
 }
 
 func binaryPlus(x, y interface{}) interface{} {
+	if isComplex(x) || isComplex(y) {
+		return SimplifyComplex(ToComplex(x) + ToComplex(y))
+	}
 	return Num(x) + Num(y)
 }
 
 func binaryMinus(x, y interface{}) interface{} {
+	if isComplex(x) || isComplex(y) {
+		return SimplifyComplex(ToComplex(x) - ToComplex(y))
+	}
 	return Num(x) - Num(y)
 }
 
 func binaryDivide(x, y interface{}) interface{} {
+	if isComplex(x) || isComplex(y) {
+		return SimplifyComplex(ToComplex(x) / ToComplex(y))
+	}
 	return Num(x) / Num(y)
 }
 
@@ -45,18 +64,20 @@ var times = reduce(binaryTimes, float64(1))
 var plus = reduce(binaryPlus, float64(0))
 
 func minus(args Pair) interface{} {
+	first := First(args)
 	if Rest(args) == nil {
-		return binaryMinus(float64(0), First(args))
+		return binaryMinus(float64(0), first)
 	} else {
-		return reduce(binaryMinus, Num(First(args)))(RestPair(args))
+		return reduce(binaryMinus, first)(RestPair(args))
 	}
 }
 
 func divide(args Pair) interface{} {
+	first := First(args)
 	if Rest(args) == nil {
-		return binaryDivide(float64(1), First(args))
+		return binaryDivide(float64(1), first)
 	} else {
-		return reduce(binaryDivide, Num(First(args)))(RestPair(args))
+		return reduce(binaryDivide, first)(RestPair(args))
 	}
 }
 
