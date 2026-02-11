@@ -30,6 +30,7 @@ func installSpecialForms(environment Environment) {
 	environment.DefineName(NewSpecialForm(Symbol("define"), defineSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("set!"), setSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("lambda"), lambdaSpecialForm))
+	environment.DefineName(NewSpecialForm(Symbol("macro"), macroSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("begin"), beginSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("if"), ifSpecialForm))
 	environment.DefineName(NewSpecialForm(Symbol("cond"), condSpecialForm))
@@ -78,6 +79,15 @@ func lambdaSpecialForm(interpreter Scheme, args Pair, environment Environment) i
 	params := First(args)
 	body := Rest(args)
 	return NewClosure(params, body, environment)
+}
+
+// macroSpecialForm implements macro which creates a syntax transformer.
+// Form: (macro (params...) body...)
+// Unlike lambda, a macro receives unevaluated arguments and returns code to be evaluated.
+func macroSpecialForm(interpreter Scheme, args Pair, environment Environment) interface{} {
+	params := First(args)
+	body := Rest(args)
+	return NewMacro(params, body, environment)
 }
 
 // beginSpecialForm implements begin which evaluates expressions in sequence and returns the last result.

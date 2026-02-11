@@ -160,7 +160,7 @@ func installListPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("null?", 1, 1, primitiveNull))
 	environment.DefineName(NewPrimitive("list?", 1, 1, primitiveListP))
 	environment.DefineName(NewPrimitive("make-list", 1, maxArgs, primitiveMakeList))
-	environment.DefineName(NewPrimitive("list", 1, 1, primitiveList))
+	environment.DefineName(NewPrimitive("list", 0, maxArgs, primitiveList))
 	environment.DefineName(NewPrimitive("length", 1, 1, primitiveLength))
 	environment.DefineName(NewPrimitive("append", 0, 2, primitiveAppend))
 

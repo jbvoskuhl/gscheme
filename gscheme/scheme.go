@@ -146,6 +146,12 @@ func (s *scheme) EvalList(list Pair, environment Environment) Pair {
 
 // EvalCombination evaluates the first item in the list and applies the remaining arguments to it.
 func (s *scheme) EvalCombination(first interface{}, rest Pair, environment Environment) interface{} {
+	// Check if it's a macro - if so, expand and evaluate the result
+	if m, ok := first.(Macro); ok {
+		expansion := m.Expand(s, rest, environment)
+		return s.Eval(expansion, environment)
+	}
+	// Otherwise it's a regular procedure
 	p, ok := first.(Applyer)
 	if !ok {
 		return Err("Bad Procedure: ", List(first))
