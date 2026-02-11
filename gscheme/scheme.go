@@ -39,6 +39,7 @@ func New() Scheme {
 	installComplexPrimitives(result.environment)
 	installHigherOrderPrimitives(result.environment)
 	installStringPrimitives(result.environment)
+	installVectorPrimitives(result.environment)
 	result.loadPrimitivesScheme()
 	return result
 }

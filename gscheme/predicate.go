@@ -71,11 +71,42 @@ func primitiveEqual(args Pair) interface{} {
 
 // equal checks for deep structural equality between two objects.
 func equal(x, y interface{}) bool {
-	if x == y {
-		return true
-	}
 	if x == nil || y == nil {
 		return x == y
+	}
+	// Compare vectors element-by-element (before identity check since slices are not comparable)
+	if xVec, ok := x.([]interface{}); ok {
+		if yVec, ok := y.([]interface{}); ok {
+			if len(xVec) != len(yVec) {
+				return false
+			}
+			for i := range xVec {
+				if !equal(xVec[i], yVec[i]) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+	// Compare bytevectors element-by-element
+	if xBv, ok := x.([]uint8); ok {
+		if yBv, ok := y.([]uint8); ok {
+			if len(xBv) != len(yBv) {
+				return false
+			}
+			for i := range xBv {
+				if xBv[i] != yBv[i] {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+	// Identity check (safe after ruling out uncomparable slice types)
+	if x == y {
+		return true
 	}
 	// Compare pairs recursively
 	if xPair, ok := x.(Pair); ok {

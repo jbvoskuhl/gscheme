@@ -67,6 +67,33 @@ func uint64Constraint(object interface{}) uint64 {
 	return 0 // Should be uncalled since Err will raise an exception.
 }
 
+// vectorConstraint is used to enforce vector ([]interface{}) type constraints within primitives.
+func vectorConstraint(object interface{}) []interface{} {
+	result, ok := object.([]interface{})
+	if !ok {
+		Err("Expected vector, but instead got: ", List(object))
+	}
+	return result
+}
+
+// bytevectorConstraint is used to enforce bytevector ([]uint8) type constraints within primitives.
+func bytevectorConstraint(object interface{}) []uint8 {
+	result, ok := object.([]uint8)
+	if !ok {
+		Err("Expected bytevector, but instead got: ", List(object))
+	}
+	return result
+}
+
+// byteConstraint validates that a float64 value is in the 0-255 range and returns it as uint8.
+func byteConstraint(object interface{}) uint8 {
+	f, ok := object.(float64)
+	if !ok || f < 0 || f > 255 || f != float64(int(f)) {
+		Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+	}
+	return uint8(f)
+}
+
 // integerConstraint is used to enforce integer type constraints within primitives.
 func integerConstraint(object interface{}) interface{} {
 	switch value := object.(type) {
