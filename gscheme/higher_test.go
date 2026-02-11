@@ -74,6 +74,161 @@ func TestMember(t *testing.T) {
 	}
 }
 
+func TestForEach(t *testing.T) {
+	scheme := New()
+
+	// (let ((sum 0)) (for-each (lambda (x) (set! sum (+ sum x))) '(1 2 3)) sum) => 6
+	result := scheme.EvalGlobal(List(Symbol("let"),
+		List(List(Symbol("sum"), float64(0))),
+		List(Symbol("for-each"),
+			List(Symbol("lambda"), List(Symbol("x")),
+				List(Symbol("set!"), Symbol("sum"),
+					List(Symbol("+"), Symbol("sum"), Symbol("x")))),
+			List(Symbol("quote"), List(float64(1), float64(2), float64(3)))),
+		Symbol("sum")))
+	if result != float64(6) {
+		t.Errorf("Expected 6 but got: %v", result)
+	}
+
+	// (for-each (lambda (x) x) '()) => ()
+	result = scheme.EvalGlobal(List(Symbol("for-each"),
+		List(Symbol("lambda"), List(Symbol("x")), Symbol("x")),
+		List(Symbol("quote"), nil)))
+	if result != nil {
+		t.Errorf("Expected nil but got: %v", result)
+	}
+}
+
+func TestMemq(t *testing.T) {
+	scheme := New()
+
+	// (memq 'b '(a b c)) => (b c)
+	result := scheme.EvalGlobal(List(Symbol("memq"),
+		List(Symbol("quote"), Symbol("b")),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c")))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != Symbol("b") {
+		t.Errorf("Expected (b c) but got: %v", result)
+	}
+
+	// (memq 'd '(a b c)) => #f
+	result = scheme.EvalGlobal(List(Symbol("memq"),
+		List(Symbol("quote"), Symbol("d")),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c")))))
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
+func TestMemv(t *testing.T) {
+	scheme := New()
+
+	// (memv 2 '(1 2 3)) => (2 3)
+	result := scheme.EvalGlobal(List(Symbol("memv"),
+		float64(2),
+		List(Symbol("quote"), List(float64(1), float64(2), float64(3)))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != float64(2) {
+		t.Errorf("Expected (2 3) but got: %v", result)
+	}
+
+	// (memv 4 '(1 2 3)) => #f
+	result = scheme.EvalGlobal(List(Symbol("memv"),
+		float64(4),
+		List(Symbol("quote"), List(float64(1), float64(2), float64(3)))))
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
+func TestAssoc(t *testing.T) {
+	scheme := New()
+
+	// (assoc 'b '((a 1) (b 2) (c 3))) => (b 2)
+	result := scheme.EvalGlobal(List(Symbol("assoc"),
+		List(Symbol("quote"), Symbol("b")),
+		List(Symbol("quote"), List(
+			List(Symbol("a"), float64(1)),
+			List(Symbol("b"), float64(2)),
+			List(Symbol("c"), float64(3))))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != Symbol("b") || Second(pair) != float64(2) {
+		t.Errorf("Expected (b 2) but got: %v", result)
+	}
+
+	// (assoc 'd '((a 1) (b 2))) => #f
+	result = scheme.EvalGlobal(List(Symbol("assoc"),
+		List(Symbol("quote"), Symbol("d")),
+		List(Symbol("quote"), List(
+			List(Symbol("a"), float64(1)),
+			List(Symbol("b"), float64(2))))))
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
+func TestAssq(t *testing.T) {
+	scheme := New()
+
+	// (assq 'b '((a 1) (b 2) (c 3))) => (b 2)
+	result := scheme.EvalGlobal(List(Symbol("assq"),
+		List(Symbol("quote"), Symbol("b")),
+		List(Symbol("quote"), List(
+			List(Symbol("a"), float64(1)),
+			List(Symbol("b"), float64(2)),
+			List(Symbol("c"), float64(3))))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != Symbol("b") {
+		t.Errorf("Expected (b 2) but got: %v", result)
+	}
+}
+
+func TestAssv(t *testing.T) {
+	scheme := New()
+
+	// (assv 2 '((1 a) (2 b) (3 c))) => (2 b)
+	result := scheme.EvalGlobal(List(Symbol("assv"),
+		float64(2),
+		List(Symbol("quote"), List(
+			List(float64(1), Symbol("a")),
+			List(float64(2), Symbol("b")),
+			List(float64(3), Symbol("c"))))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != float64(2) || Second(pair) != Symbol("b") {
+		t.Errorf("Expected (2 b) but got: %v", result)
+	}
+
+	// (assv 4 '((1 a) (2 b))) => #f
+	result = scheme.EvalGlobal(List(Symbol("assv"),
+		float64(4),
+		List(Symbol("quote"), List(
+			List(float64(1), Symbol("a")),
+			List(float64(2), Symbol("b"))))))
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
 func TestEval(t *testing.T) {
 	scheme := New()
 

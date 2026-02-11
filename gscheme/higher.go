@@ -38,7 +38,13 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewHigherOrderPrimitive("map", 2, 2, primitiveMap))
 	environment.DefineName(NewHigherOrderPrimitive("apply", 2, 2, primitiveApply))
 	environment.DefineName(NewHigherOrderPrimitive("eval", 1, 2, primitiveEval))
+	environment.DefineName(NewHigherOrderPrimitive("for-each", 2, 2, primitiveForEach))
 	environment.DefineName(NewPrimitive("member", 2, 2, primitiveMember))
+	environment.DefineName(NewPrimitive("memq", 2, 2, primitiveMemq))
+	environment.DefineName(NewPrimitive("memv", 2, 2, primitiveMemv))
+	environment.DefineName(NewPrimitive("assoc", 2, 2, primitiveAssoc))
+	environment.DefineName(NewPrimitive("assq", 2, 2, primitiveAssq))
+	environment.DefineName(NewPrimitive("assv", 2, 2, primitiveAssv))
 	environment.DefineName(NewPrimitive("error", 1, maxArgs, primitiveError))
 }
 
@@ -114,6 +120,47 @@ func primitiveEval(interpreter Scheme, args Pair, environment Environment) inter
 	return interpreter.Eval(expr, env)
 }
 
+// primitiveForEach applies a procedure to each element of a list for side effects, returns nil.
+func primitiveForEach(interpreter Scheme, args Pair, environment Environment) interface{} {
+	proc, ok := First(args).(Applyer)
+	if !ok {
+		return Err("for-each: first argument must be a procedure", List(First(args)))
+	}
+	list := Second(args)
+	if list == nil {
+		return nil
+	}
+	listPair, ok := list.(Pair)
+	if !ok {
+		return Err("for-each: second argument must be a list", List(list))
+	}
+	for listPair != nil {
+		elem := First(listPair)
+		quotedArg := List(List(Symbol("quote"), elem))
+		proc.Apply(interpreter, quotedArg, environment)
+		listPair = RestPair(listPair)
+	}
+	return nil
+}
+
+// eqv compares two values using eqv? semantics (identity + number/char value comparison).
+func eqv(x, y interface{}) bool {
+	if x == y {
+		return true
+	}
+	if xNum, ok := x.(float64); ok {
+		if yNum, ok := y.(float64); ok {
+			return xNum == yNum
+		}
+	}
+	if xChar, ok := x.(rune); ok {
+		if yChar, ok := y.(rune); ok {
+			return xChar == yChar
+		}
+	}
+	return false
+}
+
 // primitiveMember returns the sublist starting with the first occurrence of obj, or #f.
 func primitiveMember(args Pair) interface{} {
 	obj := First(args)
@@ -124,6 +171,100 @@ func primitiveMember(args Pair) interface{} {
 				return list
 			}
 			list = listPair.Rest()
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+// primitiveMemq returns the sublist starting with the first occurrence of obj using eq? (identity).
+func primitiveMemq(args Pair) interface{} {
+	obj := First(args)
+	list := Second(args)
+	for list != nil {
+		if listPair, ok := list.(Pair); ok {
+			if obj == First(listPair) {
+				return list
+			}
+			list = listPair.Rest()
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+// primitiveMemv returns the sublist starting with the first occurrence of obj using eqv? comparison.
+func primitiveMemv(args Pair) interface{} {
+	obj := First(args)
+	list := Second(args)
+	for list != nil {
+		if listPair, ok := list.(Pair); ok {
+			if eqv(obj, First(listPair)) {
+				return list
+			}
+			list = listPair.Rest()
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+// primitiveAssoc searches an alist for a pair whose car equals key using equal?.
+func primitiveAssoc(args Pair) interface{} {
+	key := First(args)
+	alist := Second(args)
+	for alist != nil {
+		if alistPair, ok := alist.(Pair); ok {
+			entry := First(alistPair)
+			if entryPair, ok := entry.(Pair); ok {
+				if equal(key, First(entryPair)) {
+					return entry
+				}
+			}
+			alist = alistPair.Rest()
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+// primitiveAssq searches an alist for a pair whose car equals key using eq? (identity).
+func primitiveAssq(args Pair) interface{} {
+	key := First(args)
+	alist := Second(args)
+	for alist != nil {
+		if alistPair, ok := alist.(Pair); ok {
+			entry := First(alistPair)
+			if entryPair, ok := entry.(Pair); ok {
+				if key == First(entryPair) {
+					return entry
+				}
+			}
+			alist = alistPair.Rest()
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+// primitiveAssv searches an alist for a pair whose car equals key using eqv? comparison.
+func primitiveAssv(args Pair) interface{} {
+	key := First(args)
+	alist := Second(args)
+	for alist != nil {
+		if alistPair, ok := alist.(Pair); ok {
+			entry := First(alistPair)
+			if entryPair, ok := entry.(Pair); ok {
+				if eqv(key, First(entryPair)) {
+					return entry
+				}
+			}
+			alist = alistPair.Rest()
 		} else {
 			break
 		}

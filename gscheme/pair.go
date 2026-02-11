@@ -163,7 +163,11 @@ func installListPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("list", 0, maxArgs, primitiveList))
 	environment.DefineName(NewPrimitive("length", 1, 1, primitiveLength))
 	environment.DefineName(NewPrimitive("append", 0, 2, primitiveAppend))
-
+	environment.DefineName(NewPrimitive("reverse", 1, 1, primitiveReverse))
+	environment.DefineName(NewPrimitive("list-tail", 2, 2, primitiveListTail))
+	environment.DefineName(NewPrimitive("list-ref", 2, 2, primitiveListRef))
+	environment.DefineName(NewPrimitive("list-set!", 3, 3, primitiveListSet))
+	environment.DefineName(NewPrimitive("list-copy", 1, 1, primitiveListCopy))
 }
 
 // installCxrPrimitives adds all the various car/cdr/caar/cdar etc. primitives down to 4-levels of composition.
@@ -301,6 +305,76 @@ func primitiveList(args Pair) interface{} {
 // primitiveLength returns the length of a list.
 func primitiveLength(args Pair) interface{} {
 	return Len(First(args))
+}
+
+// primitiveReverse exposes the Reverse utility as a primitive.
+func primitiveReverse(args Pair) interface{} {
+	return Reverse(First(args))
+}
+
+// indexConstraint converts a float64 number to an integer index.
+func indexConstraint(object interface{}) int {
+	if f, ok := object.(float64); ok {
+		return int(f)
+	}
+	return int(uint64Constraint(object))
+}
+
+// primitiveListTail returns the sublist of list starting at index k.
+func primitiveListTail(args Pair) interface{} {
+	list := First(args)
+	k := indexConstraint(Second(args))
+	for ; k > 0; k-- {
+		list = Rest(list)
+	}
+	return list
+}
+
+// primitiveListRef returns the element at index k of list.
+func primitiveListRef(args Pair) interface{} {
+	list := First(args)
+	k := indexConstraint(Second(args))
+	for ; k > 0; k-- {
+		list = Rest(list)
+	}
+	return First(list)
+}
+
+// primitiveListSet sets the element at index k of list to a new value.
+func primitiveListSet(args Pair) interface{} {
+	list := First(args)
+	k := indexConstraint(Second(args))
+	for ; k > 0; k-- {
+		list = Rest(list)
+	}
+	val := Third(args)
+	if p, ok := list.(Pair); ok {
+		p.SetFirst(val)
+		return val
+	}
+	return Err("list-set!: index out of range", args)
+}
+
+// primitiveListCopy makes a shallow copy of a list.
+func primitiveListCopy(args Pair) interface{} {
+	list := First(args)
+	if list == nil {
+		return nil
+	}
+	listPair, ok := list.(Pair)
+	if !ok {
+		return list
+	}
+	head := NewPair(First(listPair), nil)
+	tail := head
+	listPair = RestPair(listPair)
+	for listPair != nil {
+		newPair := NewPair(First(listPair), nil)
+		tail.SetRest(newPair)
+		tail = newPair
+		listPair = RestPair(listPair)
+	}
+	return head
 }
 
 // primitiveAppend builds a new list with the second one appended to the end of the first.

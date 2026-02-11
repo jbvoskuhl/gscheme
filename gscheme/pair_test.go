@@ -160,6 +160,84 @@ func TestPrimitiveMakeList(t *testing.T) {
 	}
 }
 
+func TestPrimitiveReverse(t *testing.T) {
+	interpreter := New()
+	// (reverse '(1 2 3)) => (3 2 1)
+	result := interpreter.EvalGlobal(List(Symbol("reverse"),
+		List(Symbol("quote"), List(float64(1), float64(2), float64(3)))))
+	if First(result) != float64(3) || First(Rest(result)) != float64(2) || First(Rest(Rest(result))) != float64(1) {
+		t.Errorf("Expected (3 2 1) but got: %v", result)
+	}
+	// (reverse '()) => ()
+	result = interpreter.EvalGlobal(List(Symbol("reverse"),
+		List(Symbol("quote"), nil)))
+	if result != nil {
+		t.Errorf("Expected () but got: %v", result)
+	}
+}
+
+func TestPrimitiveListTail(t *testing.T) {
+	interpreter := New()
+	// (list-tail '(a b c d) 2) => (c d)
+	result := interpreter.EvalGlobal(List(Symbol("list-tail"),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c"), Symbol("d"))),
+		float64(2)))
+	if First(result) != Symbol("c") || First(Rest(result)) != Symbol("d") {
+		t.Errorf("Expected (c d) but got: %v", result)
+	}
+	// (list-tail '(a b c) 0) => (a b c)
+	result = interpreter.EvalGlobal(List(Symbol("list-tail"),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c"))),
+		float64(0)))
+	if First(result) != Symbol("a") {
+		t.Errorf("Expected (a b c) but got: %v", result)
+	}
+}
+
+func TestPrimitiveListRef(t *testing.T) {
+	interpreter := New()
+	// (list-ref '(a b c d) 2) => c
+	result := interpreter.EvalGlobal(List(Symbol("list-ref"),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c"), Symbol("d"))),
+		float64(2)))
+	if result != Symbol("c") {
+		t.Errorf("Expected c but got: %v", result)
+	}
+}
+
+func TestPrimitiveListSet(t *testing.T) {
+	interpreter := New()
+	// (define x '(a b c)) (list-set! x 1 'd) x => (a d c)
+	interpreter.EvalGlobal(List(Symbol("define"), Symbol("x"),
+		List(Symbol("quote"), List(Symbol("a"), Symbol("b"), Symbol("c")))))
+	interpreter.EvalGlobal(List(Symbol("list-set!"), Symbol("x"), float64(1), List(Symbol("quote"), Symbol("d"))))
+	result := interpreter.EvalGlobal(Symbol("x"))
+	if Second(result) != Symbol("d") {
+		t.Errorf("Expected (a d c) but got: %v", result)
+	}
+}
+
+func TestPrimitiveListCopy(t *testing.T) {
+	interpreter := New()
+	// (list-copy '(1 2 3)) => (1 2 3)
+	result := interpreter.EvalGlobal(List(Symbol("list-copy"),
+		List(Symbol("quote"), List(float64(1), float64(2), float64(3)))))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Errorf("Expected pair result but got: %v", result)
+		return
+	}
+	if First(pair) != float64(1) || First(Rest(pair)) != float64(2) || First(Rest(Rest(pair))) != float64(3) {
+		t.Errorf("Expected (1 2 3) but got: %v", result)
+	}
+	// (list-copy '()) => ()
+	result = interpreter.EvalGlobal(List(Symbol("list-copy"),
+		List(Symbol("quote"), nil)))
+	if result != nil {
+		t.Errorf("Expected () but got: %v", result)
+	}
+}
+
 func TestPrimitiveAppend(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("append"))
