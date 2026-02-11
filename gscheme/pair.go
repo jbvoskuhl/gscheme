@@ -313,11 +313,31 @@ func primitiveAppend(args Pair) (result interface{}) {
 		return list
 	}
 	rest := Second(args)
-	temp := result
-	for Rest(list) != nil {
-		temp = Cons(First(list), temp)
-		list = Rest(list)
+	// If the first list is empty, just return the second
+	if list == nil {
+		return rest
 	}
-	SetRest(result, rest)
-	return result
+	listPair, ok := list.(Pair)
+	if !ok {
+		return Err("append: first argument must be a list", List(list))
+	}
+	// Copy the first list
+	var head Pair
+	var tail Pair
+	for listPair != nil {
+		newPair := NewPair(First(listPair), nil)
+		if head == nil {
+			head = newPair
+			tail = head
+		} else {
+			tail.SetRest(newPair)
+			tail = newPair
+		}
+		listPair = RestPair(listPair)
+	}
+	// Append the second list to the end
+	if tail != nil {
+		tail.SetRest(rest)
+	}
+	return head
 }

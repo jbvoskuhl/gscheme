@@ -6,6 +6,10 @@ const primitivesScheme = `
 ;; Scheme primitives implemented in Scheme.
 ;; Ported from jscheme/primitives.scm
 
+;;;;;;;;;;;;;;;; Aliases for list accessors
+(define second cadr)
+(define third caddr)
+
 ;;;;;;;;;;;;;;;; Standard Scheme Macros
 
 ;; or macro: returns the first truthy value or #f
@@ -51,12 +55,10 @@ const primitivesScheme = `
 ;; letrec macro: recursive bindings
 (define letrec
   (macro (bindings . body)
-    (let ((vars (map first bindings))
-          (vals (map second bindings)))
-      (cons 'let
-            (cons (map (lambda (var) (list var #f)) vars)
-                  (append (map (lambda (var val) (list 'set! var val)) vars vals)
-                          body))))))
+    (cons 'let
+          (cons (map (lambda (b) (list (first b) #f)) bindings)
+                (append (map (lambda (b) (list 'set! (first b) (second b))) bindings)
+                        body)))))
 `
 
 // loadPrimitivesScheme loads the embedded primitives Scheme code.

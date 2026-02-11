@@ -61,8 +61,10 @@ func primitiveMap(interpreter Scheme, args Pair, environment Environment) interf
 	var tail Pair
 	for listPair != nil {
 		// Apply the procedure to the current element
+		// Quote the element since Apply will try to evaluate it
 		elem := First(listPair)
-		mapped := proc.Apply(interpreter, List(elem), environment)
+		quotedArg := List(List(Symbol("quote"), elem))
+		mapped := proc.Apply(interpreter, quotedArg, environment)
 		newPair := NewPair(mapped, nil)
 		if result == nil {
 			result = newPair
@@ -83,8 +85,21 @@ func primitiveApply(interpreter Scheme, args Pair, environment Environment) inte
 		return Err("apply: first argument must be a procedure", List(First(args)))
 	}
 	argList := Second(args)
-	argPair, _ := argList.(Pair)
-	return proc.Apply(interpreter, argPair, environment)
+	// Quote each argument since Apply will try to evaluate them
+	var quotedArgs Pair
+	var tail Pair
+	for argPair, ok := argList.(Pair); ok; argPair, ok = Rest(argPair).(Pair) {
+		quoted := List(Symbol("quote"), First(argPair))
+		newPair := NewPair(quoted, nil)
+		if quotedArgs == nil {
+			quotedArgs = newPair
+			tail = quotedArgs
+		} else {
+			tail.SetRest(newPair)
+			tail = newPair
+		}
+	}
+	return proc.Apply(interpreter, quotedArgs, environment)
 }
 
 // primitiveEval evaluates an expression in the given environment (or global if not provided).
