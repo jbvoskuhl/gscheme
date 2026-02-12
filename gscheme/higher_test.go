@@ -446,6 +446,46 @@ func TestDo(t *testing.T) {
 	}
 }
 
+func TestWhen(t *testing.T) {
+	// when true: body is evaluated
+	result := eval("(when #t 1 2 3)")
+	if result != float64(3) {
+		t.Errorf("Expected 3 but got: %v", result)
+	}
+
+	// when false: returns nothing (nil mapped to #f by cond)
+	result = eval("(when #f 42)")
+	if result != nil {
+		t.Errorf("Expected nil but got: %v", result)
+	}
+
+	// when with side effects
+	result = eval("(define x 0) (when (> 5 3) (set! x 10)) x")
+	if result != float64(10) {
+		t.Errorf("Expected 10 but got: %v", result)
+	}
+}
+
+func TestUnless(t *testing.T) {
+	// unless false: body is evaluated
+	result := eval("(unless #f 1 2 3)")
+	if result != float64(3) {
+		t.Errorf("Expected 3 but got: %v", result)
+	}
+
+	// unless true: returns #f
+	result = eval("(unless #t 42)")
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+
+	// unless with side effects
+	result = eval("(define x 0) (unless (< 5 3) (set! x 10)) x")
+	if result != float64(10) {
+		t.Errorf("Expected 10 but got: %v", result)
+	}
+}
+
 func TestDelayForce(t *testing.T) {
 	// Basic delay/force
 	result := eval("(force (delay (+ 1 2)))")

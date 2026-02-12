@@ -160,6 +160,16 @@ const primitivesScheme = `
 
 ;; force: evaluate a promise
 (define (force promise) (promise))
+
+;; when: evaluate body when test is true
+(define when
+  (macro (test . body)
+    (list 'if test (cons 'begin body))))
+
+;; unless: evaluate body when test is false
+(define unless
+  (macro (test . body)
+    (list 'if test #f (cons 'begin body))))
 `
 
 // loadPrimitivesScheme loads the embedded primitives Scheme code.
