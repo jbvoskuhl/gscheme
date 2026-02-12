@@ -431,3 +431,60 @@ func TestFloorRemainder(t *testing.T) {
 		t.Errorf("Expected (floor-remainder -7 2) to be 1 but was: %v", result)
 	}
 }
+
+func TestExactInexact(t *testing.T) {
+	scheme := New()
+	// exact and inexact are identity for float64-only implementation
+	result := scheme.EvalGlobal(List(Symbol("exact"), float64(3.5)))
+	if result != float64(3.5) {
+		t.Errorf("Expected (exact 3.5) to be 3.5 but was: %v", result)
+	}
+	result = scheme.EvalGlobal(List(Symbol("inexact"), float64(3)))
+	if result != float64(3) {
+		t.Errorf("Expected (inexact 3) to be 3 but was: %v", result)
+	}
+}
+
+func TestNumerator(t *testing.T) {
+	scheme := New()
+	tests := []struct {
+		input    float64
+		expected float64
+	}{
+		{5, 5},
+		{0, 0},
+		{-5, -5},
+		{0.5, 1},
+		{-0.5, -1},
+		{0.75, 3},
+		{1.5, 3},
+	}
+	for _, tt := range tests {
+		result := scheme.EvalGlobal(List(Symbol("numerator"), tt.input))
+		if result != tt.expected {
+			t.Errorf("Expected (numerator %v) to be %v but was: %v", tt.input, tt.expected, result)
+		}
+	}
+}
+
+func TestDenominator(t *testing.T) {
+	scheme := New()
+	tests := []struct {
+		input    float64
+		expected float64
+	}{
+		{5, 1},
+		{0, 1},
+		{-5, 1},
+		{0.5, 2},
+		{-0.5, 2},
+		{0.75, 4},
+		{1.5, 2},
+	}
+	for _, tt := range tests {
+		result := scheme.EvalGlobal(List(Symbol("denominator"), tt.input))
+		if result != tt.expected {
+			t.Errorf("Expected (denominator %v) to be %v but was: %v", tt.input, tt.expected, result)
+		}
+	}
+}

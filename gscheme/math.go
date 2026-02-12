@@ -38,6 +38,10 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("floor-remainder", 2, 2, primitiveFloorRemainder))
 	environment.DefineName(NewPrimitive("truncate-quotient", 2, 2, primitiveQuotient))
 	environment.DefineName(NewPrimitive("truncate-remainder", 2, 2, primitiveRemainder))
+	environment.DefineName(NewPrimitive("exact", 1, 1, primitiveInexactToExact))
+	environment.DefineName(NewPrimitive("inexact", 1, 1, primitiveExactToInexact))
+	environment.DefineName(NewPrimitive("numerator", 1, 1, primitiveNumerator))
+	environment.DefineName(NewPrimitive("denominator", 1, 1, primitiveDenominator))
 }
 
 // isComplex returns true if x is a complex128
@@ -257,4 +261,42 @@ func primitiveFloorRemainder(args Pair) interface{} {
 	x := Num(First(args))
 	y := Num(Second(args))
 	return x - y*math.Floor(x/y)
+}
+
+func primitiveNumerator(args Pair) interface{} {
+	x := Num(First(args))
+	if x == math.Trunc(x) {
+		return x
+	}
+	// For non-integer float64, approximate via the float64 representation.
+	// Find n/d such that n/d == x by scaling out the fractional part.
+	sign := 1.0
+	if x < 0 {
+		sign = -1.0
+		x = -x
+	}
+	d := 1.0
+	for x != math.Trunc(x) {
+		x *= 2
+		d *= 2
+	}
+	g := gcd(x, d)
+	return sign * x / g
+}
+
+func primitiveDenominator(args Pair) interface{} {
+	x := Num(First(args))
+	if x == math.Trunc(x) {
+		return float64(1)
+	}
+	if x < 0 {
+		x = -x
+	}
+	d := 1.0
+	for x != math.Trunc(x) {
+		x *= 2
+		d *= 2
+	}
+	g := gcd(x, d)
+	return d / g
 }
