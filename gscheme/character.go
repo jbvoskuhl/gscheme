@@ -67,18 +67,23 @@ func primitiveCharDigitValue(args Pair) interface{} {
 	if arg < '0' || arg > '9' {
 		return false
 	} else {
-		return int32(arg - '0')
+		return float64(arg - '0')
 	}
 }
 
 func primitiveCharToInteger(args Pair) interface{} {
 	arg := characterConstraint(First(args))
-	return int32(arg)
+	return float64(arg)
 }
 
 func primitiveIntegerToChar(args Pair) interface{} {
-	arg := integerConstraint(First(args))
+	arg := First(args)
 	switch value := arg.(type) {
+	case float64:
+		if value != float64(int(value)) {
+			panic(NewError("integer->char: expected an integer, got a non-whole float64", nil))
+		}
+		return rune(int(value))
 	case uint:
 		return rune(value)
 	case uint8:
@@ -100,7 +105,7 @@ func primitiveIntegerToChar(args Pair) interface{} {
 	case int64:
 		return rune(value)
 	default:
-		panic("Internal Bug: Missing integer type in integer->char input validation.")
+		panic(NewError("integer->char: expected an integer", nil))
 	}
 }
 
@@ -116,7 +121,7 @@ func primitiveCharDowncase(args Pair) interface{} {
 
 func primitiveCharFoldcase(args Pair) interface{} {
 	arg := characterConstraint(First(args))
-	return unicode.SimpleFold(arg)
+	return unicode.ToLower(arg)
 }
 
 func charPredicate(predicate func(rune) bool) func(Pair) interface{} {

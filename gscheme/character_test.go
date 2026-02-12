@@ -131,8 +131,18 @@ func TestPrimitiveDigitValue(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("digit-value"), '0')
 	value := interpreter.EvalGlobal(expression)
-	if int32(0) != value {
+	if float64(0) != value {
 		t.Errorf("The expression (digit-value \\#0) did not evaluate to 0, instead was: %v.", value)
+	}
+	expression = List(Symbol("digit-value"), '5')
+	value = interpreter.EvalGlobal(expression)
+	if float64(5) != value {
+		t.Errorf("The expression (digit-value \\#5) did not evaluate to 5, instead was: %v.", value)
+	}
+	expression = List(Symbol("digit-value"), '9')
+	value = interpreter.EvalGlobal(expression)
+	if float64(9) != value {
+		t.Errorf("The expression (digit-value \\#9) did not evaluate to 9, instead was: %v.", value)
 	}
 	expression = List(Symbol("digit-value"), 'k')
 	value = interpreter.EvalGlobal(expression)
@@ -145,17 +155,36 @@ func TestPrimitiveCharToInteger(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("char->integer"), 'A')
 	value := interpreter.EvalGlobal(expression)
-	if int32(65) != value {
-		t.Errorf("The expression (char->integer #\\a) did not evaluate to 65, instead we got: %T.", value)
+	if float64(65) != value {
+		t.Errorf("The expression (char->integer #\\A) did not evaluate to 65.0, instead we got: %v (%T).", value, value)
+	}
+	// Unicode character
+	expression = List(Symbol("char->integer"), '\u03BB') // lambda
+	value = interpreter.EvalGlobal(expression)
+	if float64(955) != value {
+		t.Errorf("The expression (char->integer #\\λ) did not evaluate to 955.0, instead we got: %v.", value)
 	}
 }
 
 func TestPrimitiveIntegerToChar(t *testing.T) {
 	interpreter := New()
-	expression := List(Symbol("integer->char"), 65)
+	// float64 input (as the reader produces)
+	expression := List(Symbol("integer->char"), float64(65))
 	value := interpreter.EvalGlobal(expression)
 	if 'A' != value {
 		t.Errorf("The expression (integer->char 65) did not evaluate to 'A', instead we got: %v.", value)
+	}
+	// int input
+	expression = List(Symbol("integer->char"), 65)
+	value = interpreter.EvalGlobal(expression)
+	if 'A' != value {
+		t.Errorf("The expression (integer->char 65) with int did not evaluate to 'A', instead we got: %v.", value)
+	}
+	// Unicode code point
+	expression = List(Symbol("integer->char"), float64(955))
+	value = interpreter.EvalGlobal(expression)
+	if '\u03BB' != value {
+		t.Errorf("The expression (integer->char 955) did not evaluate to λ, instead we got: %v.", value)
 	}
 }
 
@@ -179,9 +208,16 @@ func TestPrimitiveCharDowncase(t *testing.T) {
 
 func TestPrimitiveCharFoldcase(t *testing.T) {
 	interpreter := New()
+	// Lowercase stays lowercase
 	expression := List(Symbol("char-foldcase"), 'a')
 	value := interpreter.EvalGlobal(expression)
-	if 'A' != value {
-		t.Errorf("The expression (char-foldcase #\\a) did not evaluate to 'A', instead we got: %v.", value)
+	if 'a' != value {
+		t.Errorf("The expression (char-foldcase #\\a) did not evaluate to 'a', instead we got: %v.", value)
+	}
+	// Uppercase folds to lowercase
+	expression = List(Symbol("char-foldcase"), 'A')
+	value = interpreter.EvalGlobal(expression)
+	if 'a' != value {
+		t.Errorf("The expression (char-foldcase #\\A) did not evaluate to 'a', instead we got: %v.", value)
 	}
 }
