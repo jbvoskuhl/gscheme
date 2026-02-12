@@ -331,3 +331,143 @@ func TestLetrec(t *testing.T) {
 		t.Errorf("Expected 120 but got: %v", result)
 	}
 }
+
+func eval(code string) interface{} {
+	s := New()
+	input := NewInputPortFromString(code)
+	var result interface{}
+	for {
+		x := input.Read()
+		if IsEOF(x) {
+			return result
+		}
+		result = s.EvalGlobal(x)
+	}
+}
+
+func TestQuasiquote(t *testing.T) {
+	// Basic quasiquote with no unquotes
+	result := eval("`(1 2 3)")
+	if Stringify(result) != "(1 2 3)" {
+		t.Errorf("Expected (1 2 3) but got: %v", Stringify(result))
+	}
+
+	// Quasiquote with unquote
+	result = eval("(define x 42) `(a ,x c)")
+	if Stringify(result) != "(a 42 c)" {
+		t.Errorf("Expected (a 42 c) but got: %v", Stringify(result))
+	}
+
+	// Quasiquote with unquote-splicing
+	result = eval("(define xs '(1 2 3)) `(a ,@xs b)")
+	if Stringify(result) != "(a 1 2 3 b)" {
+		t.Errorf("Expected (a 1 2 3 b) but got: %v", Stringify(result))
+	}
+
+	// Nested quasiquote with expression
+	result = eval("`(a ,(+ 1 2) c)")
+	if Stringify(result) != "(a 3 c)" {
+		t.Errorf("Expected (a 3 c) but got: %v", Stringify(result))
+	}
+
+	// Quasiquote with only constants
+	result = eval("`(a b c)")
+	if Stringify(result) != "(a b c)" {
+		t.Errorf("Expected (a b c) but got: %v", Stringify(result))
+	}
+
+	// Quasiquote with symbol
+	result = eval("`x")
+	if result != Symbol("x") {
+		t.Errorf("Expected x but got: %v", result)
+	}
+
+	// Quasiquote with number
+	result = eval("`42")
+	if result != float64(42) {
+		t.Errorf("Expected 42 but got: %v", result)
+	}
+}
+
+func TestCase(t *testing.T) {
+	// Basic case with matching clause
+	result := eval("(case (+ 1 1) ((1) 'one) ((2) 'two) ((3) 'three))")
+	if result != Symbol("two") {
+		t.Errorf("Expected two but got: %v", result)
+	}
+
+	// Case with else clause
+	result = eval("(case 99 ((1) 'one) ((2) 'two) (else 'other))")
+	if result != Symbol("other") {
+		t.Errorf("Expected other but got: %v", result)
+	}
+
+	// Case with multiple values in a clause
+	result = eval("(case 2 ((1 2 3) 'low) ((4 5 6) 'high))")
+	if result != Symbol("low") {
+		t.Errorf("Expected low but got: %v", result)
+	}
+
+	// Case with no match and no else
+	result = eval("(case 99 ((1) 'one) ((2) 'two))")
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
+func TestDo(t *testing.T) {
+	// Simple do loop: count to 3
+	result := eval(`
+		(do ((n 0 (+ n 1)))
+		    ((= n 3) n))
+	`)
+	if result != float64(3) {
+		t.Errorf("Expected 3 but got: %v", result)
+	}
+
+	// Basic do loop: sum 1 to 5
+	result = eval(`
+		(do ((n 1 (+ n 1))
+		     (sum 0 (+ sum n)))
+		    ((> n 5) sum))
+	`)
+	if result != float64(15) {
+		t.Errorf("Expected 15 but got: %v", result)
+	}
+
+	// Do loop building a list (reversed)
+	result = eval(`
+		(do ((n 0 (+ n 1))
+		     (lst '() (cons n lst)))
+		    ((= n 3) lst))
+	`)
+	if Stringify(result) != "(2 1 0)" {
+		t.Errorf("Expected (2 1 0) but got: %v", Stringify(result))
+	}
+}
+
+func TestDelayForce(t *testing.T) {
+	// Basic delay/force
+	result := eval("(force (delay (+ 1 2)))")
+	if result != float64(3) {
+		t.Errorf("Expected 3 but got: %v", result)
+	}
+
+	// Promise memoization: value is computed only once
+	result = eval(`
+		(define count 0)
+		(define p (delay (begin (set! count (+ count 1)) count)))
+		(force p)
+		(force p)
+		count
+	`)
+	if result != float64(1) {
+		t.Errorf("Expected 1 (promise should memoize) but got: %v", result)
+	}
+
+	// Promise is a procedure
+	result = eval("(procedure? (delay 42))")
+	if result != true {
+		t.Errorf("Expected #t but got: %v", result)
+	}
+}
