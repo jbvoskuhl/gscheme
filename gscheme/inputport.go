@@ -8,6 +8,19 @@ import (
 	"unicode"
 )
 
+// namedCharacters maps R7RS-small character names to their rune values.
+var namedCharacters = map[string]rune{
+	"alarm":     '\x07',
+	"backspace": '\x08',
+	"delete":    '\x7F',
+	"escape":    '\x1B',
+	"newline":   '\n',
+	"null":      '\x00',
+	"return":    '\r',
+	"space":     ' ',
+	"tab":       '\t',
+}
+
 // EOF is the special object returned when end-of-file is reached.
 var EOF = Symbol("#!EOF")
 
@@ -86,6 +99,36 @@ func (p *InputPort) peekCh() rune {
 		return p.pushChar(-1)
 	}
 	return p.pushChar(ch)
+}
+
+// parseHexScalar parses a string of hex digits as a Unicode code point.
+func parseHexScalar(hexDigits string) (rune, bool) {
+	n, err := strconv.ParseInt(hexDigits, 16, 32)
+	if err != nil {
+		return 0, false
+	}
+	return rune(n), true
+}
+
+// readStringHexEscape reads hex digits until ';' for a \xHHHH; string escape.
+func (p *InputPort) readStringHexEscape() rune {
+	var hexBuf strings.Builder
+	for {
+		r, _, err := p.in.ReadRune()
+		if err != nil {
+			warn("EOF inside hex escape in string.")
+			break
+		}
+		if r == ';' {
+			break
+		}
+		hexBuf.WriteRune(r)
+	}
+	if ch, ok := parseHexScalar(hexBuf.String()); ok {
+		return ch
+	}
+	warn("Invalid hex escape in string: \\x" + hexBuf.String() + ";")
+	return unicode.ReplacementChar
 }
 
 // Read reads and returns a Scheme expression, or EOF.
@@ -233,10 +276,19 @@ func (p *InputPort) nextToken() interface{} {
 					p.buff.WriteRune('\t')
 				case 'r':
 					p.buff.WriteRune('\r')
+				case 'a':
+					p.buff.WriteRune('\x07')
+				case 'b':
+					p.buff.WriteRune('\x08')
 				case '\\':
 					p.buff.WriteRune('\\')
 				case '"':
 					p.buff.WriteRune('"')
+				case '|':
+					p.buff.WriteRune('|')
+				case 'x':
+					ch := p.readStringHexEscape()
+					p.buff.WriteRune(ch)
 				default:
 					p.buff.WriteRune(escaped)
 				}
@@ -263,18 +315,34 @@ func (p *InputPort) nextToken() interface{} {
 			if err != nil {
 				return EOF
 			}
-			if r == 's' || r == 'S' || r == 'n' || r == 'N' {
-				p.pushChar(r)
-				token := p.nextToken()
-				if token == Symbol("space") {
-					return ' '
-				} else if token == Symbol("newline") {
-					return '\n'
-				} else {
-					p.isPushedToken = true
-					p.pushedToken = token
+			if unicode.IsLetter(r) {
+				// Accumulate a full word
+				p.buff.Reset()
+				p.buff.WriteRune(r)
+				for {
+					next := p.peekCh()
+					if next == -1 || unicode.IsSpace(next) || next == '(' || next == ')' ||
+						next == '\'' || next == ';' || next == '"' || next == ',' || next == '`' {
+						break
+					}
+					p.popChar()
+					p.buff.WriteRune(next)
+				}
+				word := p.buff.String()
+				if len(word) == 1 {
 					return r
 				}
+				lower := strings.ToLower(word)
+				if ch, ok := namedCharacters[lower]; ok {
+					return ch
+				}
+				if lower[0] == 'x' && len(lower) > 1 {
+					if ch, ok := parseHexScalar(lower[1:]); ok {
+						return ch
+					}
+				}
+				warn("Unknown character name: " + word)
+				return r
 			}
 			return r
 		case 'e', 'i', 'd':

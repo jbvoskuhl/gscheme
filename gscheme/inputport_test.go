@@ -293,6 +293,85 @@ func TestReadMinus(t *testing.T) {
 	}
 }
 
+func TestReadCharacterNamedAll(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected rune
+	}{
+		{`#\alarm`, '\x07'},
+		{`#\backspace`, '\x08'},
+		{`#\delete`, '\x7F'},
+		{`#\escape`, '\x1B'},
+		{`#\newline`, '\n'},
+		{`#\null`, '\x00'},
+		{`#\return`, '\r'},
+		{`#\space`, ' '},
+		{`#\tab`, '\t'},
+		// Case insensitive
+		{`#\Alarm`, '\x07'},
+		{`#\SPACE`, ' '},
+		{`#\Tab`, '\t'},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %U, got %v (%T)", tt.input, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadCharacterHex(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected rune
+	}{
+		{`#\x41`, 'A'},
+		{`#\x03BB`, '\u03BB'}, // λ
+		{`#\x0`, '\x00'},
+		{`#\x61`, 'a'},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %U, got %v (%T)", tt.input, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadStringHexEscape(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`"\x41;"`, "A"},
+		{`"\x03BB;world"`, "\u03BBworld"},
+		{`"hello\x21;"`, "hello!"},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %q, got %v (%T)", tt.input, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadStringAlarmBackspace(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`"\a"`, "\x07"},
+		{`"\b"`, "\x08"},
+		{`"\|"`, "|"},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %q, got %q", tt.input, tt.expected, result)
+		}
+	}
+}
+
 func TestEvalParsedExpression(t *testing.T) {
 	s := New()
 	input := NewInputPortFromString("(+ 1 2)")
