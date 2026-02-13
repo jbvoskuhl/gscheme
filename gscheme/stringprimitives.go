@@ -120,10 +120,17 @@ func stringCompare(pred func(string, string) bool) func(Pair) interface{} {
 	}
 }
 
+// foldString applies Unicode simple case folding to a string.
+// R7RS specifies simple case folding which is equivalent to strings.ToLower
+// for character-by-character folding.
+func foldString(s string) string {
+	return strings.ToLower(s)
+}
+
 // stringCompareCaseInsensitive creates a variadic case-insensitive string comparison primitive.
 func stringCompareCaseInsensitive(pred func(string, string) bool) func(Pair) interface{} {
 	return stringCompare(func(x, y string) bool {
-		return pred(strings.ToLower(x), strings.ToLower(y))
+		return pred(foldString(x), foldString(y))
 	})
 }
 
@@ -151,7 +158,7 @@ func primitiveStringDowncase(args Pair) interface{} {
 
 // primitiveStringFoldcase returns a case-folded copy of the string.
 func primitiveStringFoldcase(args Pair) interface{} {
-	return strings.ToLower(stringConstraint(First(args)))
+	return foldString(stringConstraint(First(args)))
 }
 
 // primitiveStringAppend concatenates all string arguments.

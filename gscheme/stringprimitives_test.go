@@ -377,6 +377,142 @@ func TestStringToNumber(t *testing.T) {
 	}
 }
 
+// Unicode-aware string tests
+
+func TestStringLengthUnicode(t *testing.T) {
+	interpreter := New()
+
+	// "café" has 4 runes despite 5 bytes in UTF-8
+	result := interpreter.EvalGlobal(List(Symbol("string-length"), "caf\u00E9"))
+	if result != int64(4) {
+		t.Errorf("Expected 4 for (string-length \"café\"), got %v", result)
+	}
+
+	// "λαβ" has 3 runes
+	result = interpreter.EvalGlobal(List(Symbol("string-length"), "\u03BB\u03B1\u03B2"))
+	if result != int64(3) {
+		t.Errorf("Expected 3 for (string-length \"λαβ\"), got %v", result)
+	}
+
+	// 漢字 has 2 runes (3 bytes each in UTF-8)
+	result = interpreter.EvalGlobal(List(Symbol("string-length"), "\u6F22\u5B57"))
+	if result != int64(2) {
+		t.Errorf("Expected 2 for (string-length \"漢字\"), got %v", result)
+	}
+}
+
+func TestStringRefUnicode(t *testing.T) {
+	interpreter := New()
+
+	// (string-ref "café" 3) => #\é (U+00E9)
+	result := interpreter.EvalGlobal(List(Symbol("string-ref"), "caf\u00E9", int64(3)))
+	if result != '\u00E9' {
+		t.Errorf("Expected #\\é for (string-ref \"café\" 3), got %v", result)
+	}
+
+	// (string-ref "λαβ" 0) => #\λ
+	result = interpreter.EvalGlobal(List(Symbol("string-ref"), "\u03BB\u03B1\u03B2", int64(0)))
+	if result != '\u03BB' {
+		t.Errorf("Expected #\\λ for (string-ref \"λαβ\" 0), got %v", result)
+	}
+}
+
+func TestSubstringUnicode(t *testing.T) {
+	interpreter := New()
+
+	// (substring "café" 0 4) => "café"
+	result := interpreter.EvalGlobal(List(Symbol("substring"), "caf\u00E9", int64(0), int64(4)))
+	if result != "caf\u00E9" {
+		t.Errorf("Expected \"café\", got %v", result)
+	}
+
+	// (substring "λαβγδ" 1 3) => "αβ"
+	result = interpreter.EvalGlobal(List(Symbol("substring"), "\u03BB\u03B1\u03B2\u03B3\u03B4", int64(1), int64(3)))
+	if result != "\u03B1\u03B2" {
+		t.Errorf("Expected \"αβ\", got %v", result)
+	}
+}
+
+func TestStringUpcaseUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Greek lowercase → uppercase
+	result := interpreter.EvalGlobal(List(Symbol("string-upcase"), "\u03BB\u03B1\u03B2"))
+	if result != "\u039B\u0391\u0392" {
+		t.Errorf("Expected \"ΛΑΒ\" for (string-upcase \"λαβ\"), got %v", result)
+	}
+}
+
+func TestStringDowncaseUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Greek uppercase → lowercase
+	result := interpreter.EvalGlobal(List(Symbol("string-downcase"), "\u039B\u0391\u0392"))
+	if result != "\u03BB\u03B1\u03B2" {
+		t.Errorf("Expected \"λαβ\" for (string-downcase \"ΛΑΒ\"), got %v", result)
+	}
+}
+
+func TestStringFoldcaseUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Mixed case Greek
+	result := interpreter.EvalGlobal(List(Symbol("string-foldcase"), "\u039B\u03B1\u0392"))
+	if result != "\u03BB\u03B1\u03B2" {
+		t.Errorf("Expected \"λαβ\" for (string-foldcase \"ΛαΒ\"), got %v", result)
+	}
+
+	// German ß stays as ß under simple case folding (char-by-char)
+	result = interpreter.EvalGlobal(List(Symbol("string-foldcase"), "Stra\u00DFe"))
+	if result != "stra\u00DFe" {
+		t.Errorf("Expected \"straße\" for (string-foldcase \"Straße\"), got %q", result)
+	}
+}
+
+func TestStringCIEqualUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Greek case-insensitive equality
+	result := interpreter.EvalGlobal(List(Symbol("string-ci=?"), "\u03BB\u03B1\u03B2", "\u039B\u0391\u0392"))
+	if result != true {
+		t.Errorf("Expected #t for (string-ci=? \"λαβ\" \"ΛΑΒ\"), got %v", result)
+	}
+
+	// Cyrillic case-insensitive equality
+	result = interpreter.EvalGlobal(List(Symbol("string-ci=?"), "\u041C\u043E\u0441\u043A\u0432\u0430", "\u043C\u043E\u0441\u043A\u0432\u0430"))
+	if result != true {
+		t.Errorf("Expected #t for (string-ci=? \"Москва\" \"москва\"), got %v", result)
+	}
+}
+
+func TestStringToListUnicode(t *testing.T) {
+	interpreter := New()
+
+	// (string->list "λx") => (#\λ #\x)
+	result := interpreter.EvalGlobal(List(Symbol("string->list"), "\u03BBx"))
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected pair, got %v", result)
+	}
+	if First(pair) != '\u03BB' {
+		t.Errorf("Expected first char #\\λ, got %v", First(pair))
+	}
+	if First(Rest(pair)) != 'x' {
+		t.Errorf("Expected second char #\\x, got %v", First(Rest(pair)))
+	}
+}
+
+func TestListToStringUnicode(t *testing.T) {
+	interpreter := New()
+
+	// (list->string '(#\λ #\α #\β)) => "λαβ"
+	result := interpreter.EvalGlobal(List(Symbol("list->string"),
+		List(Symbol("quote"), List('\u03BB', '\u03B1', '\u03B2'))))
+	if result != "\u03BB\u03B1\u03B2" {
+		t.Errorf("Expected \"λαβ\", got %v", result)
+	}
+}
+
 func TestStringMap(t *testing.T) {
 	interpreter := New()
 

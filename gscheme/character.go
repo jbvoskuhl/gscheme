@@ -1,6 +1,8 @@
 package gscheme
 
-import "unicode"
+import (
+	"unicode"
+)
 
 func installCharacterPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("char?", 1, 1, primitiveChar))
@@ -53,7 +55,10 @@ var primitiveCharCaseInsensitiveGreaterThanOrEquals = charsPredicateCaseInsensit
 
 var primitiveCharAlphabetic = charPredicate(unicode.IsLetter)
 
-var primitiveCharNumeric = charPredicate(unicode.IsNumber)
+// primitiveCharNumeric uses unicode.IsDigit (Unicode category Nd: decimal digits)
+// rather than unicode.IsNumber (which also includes fractions, Roman numerals, etc.).
+// This matches R7RS: char-numeric? returns #t iff digit-value returns an integer.
+var primitiveCharNumeric = charPredicate(unicode.IsDigit)
 
 var primitiveCharWhitespace = charPredicate(unicode.IsSpace)
 
@@ -61,14 +66,32 @@ var primitiveCharUpperCase = charPredicate(unicode.IsUpper)
 
 var primitiveCharLowerCase = charPredicate(unicode.IsLower)
 
-func primitiveCharDigitValue(args Pair) interface{} {
-	// TODO(jbvoskuhl): Make this more Unicode friendly.
-	arg := characterConstraint(First(args))
-	if arg < '0' || arg > '9' {
-		return false
-	} else {
-		return int64(arg - '0')
+// digitValue returns the decimal digit value (0-9) for any Unicode decimal digit
+// character (category Nd), or -1 if the character is not a decimal digit.
+func digitValue(r rune) int {
+	if !unicode.IsDigit(r) {
+		return -1
 	}
+	// Unicode decimal digit characters are arranged in contiguous blocks of 10.
+	// Walk backwards to find the zero digit of this block.
+	zero := r
+	for unicode.IsDigit(zero - 1) {
+		zero--
+	}
+	val := int(r - zero)
+	if val >= 0 && val <= 9 {
+		return val
+	}
+	return -1
+}
+
+func primitiveCharDigitValue(args Pair) interface{} {
+	arg := characterConstraint(First(args))
+	val := digitValue(arg)
+	if val < 0 {
+		return false
+	}
+	return int64(val)
 }
 
 func primitiveCharToInteger(args Pair) interface{} {
@@ -121,7 +144,16 @@ func primitiveCharDowncase(args Pair) interface{} {
 
 func primitiveCharFoldcase(args Pair) interface{} {
 	arg := characterConstraint(First(args))
-	return unicode.ToLower(arg)
+	return foldChar(arg)
+}
+
+// foldChar performs Unicode simple case folding on a single rune.
+// R7RS specifies simple case folding (Unicode CaseFolding.txt, status S and C),
+// which for individual characters is equivalent to unicode.ToLower.
+// Note: full case folding (e.g. ß → ss) produces multiple characters and is
+// not applicable at the character level.
+func foldChar(r rune) rune {
+	return unicode.ToLower(r)
 }
 
 func charPredicate(predicate func(rune) bool) func(Pair) interface{} {
@@ -154,6 +186,6 @@ func charsPredicateCaseInsensitive(predicate func(rune, rune) bool) func(Pair) i
 
 func caseInsensitivePredicate(predicate func(rune, rune) bool) func(rune, rune) bool {
 	return func(x, y rune) bool {
-		return predicate(unicode.ToLower(x), unicode.ToLower(y))
+		return predicate(foldChar(x), foldChar(y))
 	}
 }

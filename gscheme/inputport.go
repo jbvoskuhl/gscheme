@@ -382,7 +382,7 @@ func (p *InputPort) nextToken() interface{} {
 				return num
 			}
 		}
-		// Otherwise it's a symbol (lowercase and intern)
+		// R7RS: identifiers are case-insensitive, fold to lowercase.
 		return Symbol(strings.ToLower(s))
 	}
 }

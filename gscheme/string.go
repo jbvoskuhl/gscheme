@@ -18,6 +18,8 @@ func Stringify(object interface{}) string {
 		} else {
 			return "#f"
 		}
+	case rune:
+		return stringifyCharacter(value)
 	case []byte:
 		return stringifyByteVector(value)
 	case []interface{}:
@@ -38,7 +40,33 @@ func Stringify(object interface{}) string {
 	}
 }
 
-// stringifyVector takes a bytevector (which we model as a slice of uint8) and turns it into a string.
+// reverseNamedCharacters maps rune values to their R7RS character names.
+var reverseNamedCharacters = map[rune]string{
+	'\x07': "alarm",
+	'\x08': "backspace",
+	'\x7F': "delete",
+	'\x1B': "escape",
+	'\n':   "newline",
+	'\x00': "null",
+	'\r':   "return",
+	' ':    "space",
+	'\t':   "tab",
+}
+
+// stringifyCharacter formats a rune as a Scheme character literal.
+func stringifyCharacter(ch rune) string {
+	if name, ok := reverseNamedCharacters[ch]; ok {
+		return "#\\" + name
+	}
+	if ch >= '!' && ch <= '~' {
+		// Printable ASCII
+		return "#\\" + string(ch)
+	}
+	// Non-printable or non-ASCII: use hex scalar value
+	return fmt.Sprintf("#\\x%X", ch)
+}
+
+// stringifyByteVector takes a bytevector (which we model as a slice of uint8) and turns it into a string.
 func stringifyByteVector(vector []uint8) string {
 	items := make([]string, len(vector))
 	for index, item := range vector {

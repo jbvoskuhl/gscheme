@@ -221,3 +221,151 @@ func TestPrimitiveCharFoldcase(t *testing.T) {
 		t.Errorf("The expression (char-foldcase #\\A) did not evaluate to 'a', instead we got: %v.", value)
 	}
 }
+
+// Unicode-aware tests
+
+func TestCharNumericUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Arabic-Indic digit ٣ (U+0663) is a decimal digit
+	result := interpreter.EvalGlobal(List(Symbol("char-numeric?"), '\u0663'))
+	if result != true {
+		t.Errorf("Expected #t for (char-numeric? #\\x663) (Arabic-Indic 3), got %v", result)
+	}
+
+	// Devanagari digit ५ (U+096B) is a decimal digit
+	result = interpreter.EvalGlobal(List(Symbol("char-numeric?"), '\u096B'))
+	if result != true {
+		t.Errorf("Expected #t for (char-numeric? #\\x96B) (Devanagari 5), got %v", result)
+	}
+
+	// Roman numeral Ⅳ (U+2163) is NOT a decimal digit (category Nl, not Nd)
+	result = interpreter.EvalGlobal(List(Symbol("char-numeric?"), '\u2163'))
+	if result != false {
+		t.Errorf("Expected #f for (char-numeric? #\\x2163) (Roman numeral IV), got %v", result)
+	}
+
+	// Fraction ½ (U+00BD) is NOT a decimal digit (category No, not Nd)
+	result = interpreter.EvalGlobal(List(Symbol("char-numeric?"), '\u00BD'))
+	if result != false {
+		t.Errorf("Expected #f for (char-numeric? #\\xBD) (fraction 1/2), got %v", result)
+	}
+}
+
+func TestDigitValueUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Arabic-Indic digits ٠-٩ (U+0660-U+0669)
+	for i := 0; i <= 9; i++ {
+		ch := rune(0x0660 + i)
+		result := interpreter.EvalGlobal(List(Symbol("digit-value"), ch))
+		if result != int64(i) {
+			t.Errorf("Expected %d for (digit-value #\\x%X), got %v", i, ch, result)
+		}
+	}
+
+	// Devanagari digits ०-९ (U+0966-U+096F)
+	for i := 0; i <= 9; i++ {
+		ch := rune(0x0966 + i)
+		result := interpreter.EvalGlobal(List(Symbol("digit-value"), ch))
+		if result != int64(i) {
+			t.Errorf("Expected %d for (digit-value #\\x%X), got %v", i, ch, result)
+		}
+	}
+
+	// Non-digit returns #f
+	result := interpreter.EvalGlobal(List(Symbol("digit-value"), '\u03BB'))
+	if result != false {
+		t.Errorf("Expected #f for (digit-value #\\λ), got %v", result)
+	}
+}
+
+func TestCharCaseUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Greek Σ (uppercase) → σ (lowercase)
+	result := interpreter.EvalGlobal(List(Symbol("char-downcase"), '\u03A3'))
+	if result != '\u03C3' {
+		t.Errorf("Expected σ (U+03C3) for (char-downcase #\\Σ), got %v", result)
+	}
+
+	// Greek σ (lowercase) → Σ (uppercase)
+	result = interpreter.EvalGlobal(List(Symbol("char-upcase"), '\u03C3'))
+	if result != '\u03A3' {
+		t.Errorf("Expected Σ (U+03A3) for (char-upcase #\\σ), got %v", result)
+	}
+
+	// char-foldcase on Greek Σ → σ
+	result = interpreter.EvalGlobal(List(Symbol("char-foldcase"), '\u03A3'))
+	if result != '\u03C3' {
+		t.Errorf("Expected σ (U+03C3) for (char-foldcase #\\Σ), got %v", result)
+	}
+
+	// char-upper-case? on Σ
+	result = interpreter.EvalGlobal(List(Symbol("char-upper-case?"), '\u03A3'))
+	if result != true {
+		t.Errorf("Expected #t for (char-upper-case? #\\Σ), got %v", result)
+	}
+
+	// char-lower-case? on σ
+	result = interpreter.EvalGlobal(List(Symbol("char-lower-case?"), '\u03C3'))
+	if result != true {
+		t.Errorf("Expected #t for (char-lower-case? #\\σ), got %v", result)
+	}
+
+	// char-alphabetic? on λ
+	result = interpreter.EvalGlobal(List(Symbol("char-alphabetic?"), '\u03BB'))
+	if result != true {
+		t.Errorf("Expected #t for (char-alphabetic? #\\λ), got %v", result)
+	}
+
+	// char-alphabetic? on CJK character 漢 (U+6F22)
+	result = interpreter.EvalGlobal(List(Symbol("char-alphabetic?"), '\u6F22'))
+	if result != true {
+		t.Errorf("Expected #t for (char-alphabetic? #\\漢), got %v", result)
+	}
+}
+
+func TestStringifyCharacter(t *testing.T) {
+	tests := []struct {
+		input    rune
+		expected string
+	}{
+		{'a', `#\a`},
+		{' ', `#\space`},
+		{'\n', `#\newline`},
+		{'\t', `#\tab`},
+		{'\x07', `#\alarm`},
+		{'\x08', `#\backspace`},
+		{'\x7F', `#\delete`},
+		{'\x1B', `#\escape`},
+		{'\x00', `#\null`},
+		{'\r', `#\return`},
+		{'\u03BB', `#\x3BB`},       // λ — non-ASCII uses hex
+		{'\u6F22', `#\x6F22`},      // 漢 — CJK uses hex
+		{'!', `#\!`},               // printable ASCII
+		{'~', `#\~`},               // printable ASCII
+	}
+	for _, tt := range tests {
+		result := Stringify(tt.input)
+		if result != tt.expected {
+			t.Errorf("Stringify(%U): expected %q, got %q", tt.input, tt.expected, result)
+		}
+	}
+}
+
+func TestCharCIUnicode(t *testing.T) {
+	interpreter := New()
+
+	// Greek uppercase and lowercase should be equal under case-insensitive comparison
+	result := interpreter.EvalGlobal(List(Symbol("char-ci=?"), '\u03A3', '\u03C3'))
+	if result != true {
+		t.Errorf("Expected #t for (char-ci=? #\\Σ #\\σ), got %v", result)
+	}
+
+	// Cyrillic А (U+0410) and а (U+0430)
+	result = interpreter.EvalGlobal(List(Symbol("char-ci=?"), '\u0410', '\u0430'))
+	if result != true {
+		t.Errorf("Expected #t for (char-ci=? #\\А #\\а) (Cyrillic), got %v", result)
+	}
+}
