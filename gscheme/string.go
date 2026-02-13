@@ -2,6 +2,7 @@ package gscheme
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -25,6 +26,8 @@ func Stringify(object interface{}) string {
 		return fmt.Sprintf("\"%s\"", value)
 	case Symbol:
 		return string(value)
+	case int64:
+		return strconv.FormatInt(value, 10)
 	case complex128:
 		return stringifyComplex(value)
 	case fmt.Stringer:

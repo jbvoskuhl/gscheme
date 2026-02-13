@@ -219,7 +219,8 @@ func TestMin(t *testing.T) {
 func TestQuotient(t *testing.T) {
 	scheme := New()
 	tests := []struct {
-		a, b, expected float64
+		a, b     float64
+		expected int64
 	}{
 		{7, 2, 3},
 		{-7, 2, -3},
@@ -229,7 +230,7 @@ func TestQuotient(t *testing.T) {
 	for _, tt := range tests {
 		result := scheme.EvalGlobal(List(Symbol("quotient"), tt.a, tt.b))
 		if result != tt.expected {
-			t.Errorf("Expected (quotient %v %v) to be %v but was: %v", tt.a, tt.b, tt.expected, result)
+			t.Errorf("Expected (quotient %v %v) to be %v but was: %v (%T)", tt.a, tt.b, tt.expected, result, result)
 		}
 	}
 }
@@ -282,7 +283,7 @@ func TestGcd(t *testing.T) {
 	}
 	// (gcd) with no args returns 0
 	result = scheme.EvalGlobal(List(Symbol("gcd")))
-	if result != float64(0) {
+	if result != int64(0) {
 		t.Errorf("Expected (gcd) to be 0 but was: %v", result)
 	}
 	// gcd with negative numbers
@@ -300,7 +301,7 @@ func TestLcm(t *testing.T) {
 	}
 	// (lcm) with no args returns 1
 	result = scheme.EvalGlobal(List(Symbol("lcm")))
-	if result != float64(1) {
+	if result != int64(1) {
 		t.Errorf("Expected (lcm) to be 1 but was: %v", result)
 	}
 	// lcm with zero
@@ -338,7 +339,7 @@ func TestFloor(t *testing.T) {
 	scheme := New()
 	tests := []struct {
 		input    float64
-		expected float64
+		expected int64
 	}{
 		{3.7, 3},
 		{-3.7, -4},
@@ -347,7 +348,7 @@ func TestFloor(t *testing.T) {
 	for _, tt := range tests {
 		result := scheme.EvalGlobal(List(Symbol("floor"), tt.input))
 		if result != tt.expected {
-			t.Errorf("Expected (floor %v) to be %v but was: %v", tt.input, tt.expected, result)
+			t.Errorf("Expected (floor %v) to be %v but was: %v (%T)", tt.input, tt.expected, result, result)
 		}
 	}
 }
@@ -356,7 +357,7 @@ func TestCeiling(t *testing.T) {
 	scheme := New()
 	tests := []struct {
 		input    float64
-		expected float64
+		expected int64
 	}{
 		{3.1, 4},
 		{-3.1, -3},
@@ -365,7 +366,7 @@ func TestCeiling(t *testing.T) {
 	for _, tt := range tests {
 		result := scheme.EvalGlobal(List(Symbol("ceiling"), tt.input))
 		if result != tt.expected {
-			t.Errorf("Expected (ceiling %v) to be %v but was: %v", tt.input, tt.expected, result)
+			t.Errorf("Expected (ceiling %v) to be %v but was: %v (%T)", tt.input, tt.expected, result, result)
 		}
 	}
 }
@@ -374,7 +375,7 @@ func TestRound(t *testing.T) {
 	scheme := New()
 	tests := []struct {
 		input    float64
-		expected float64
+		expected int64
 	}{
 		{3.5, 4},   // rounds to even
 		{4.5, 4},   // rounds to even
@@ -385,7 +386,7 @@ func TestRound(t *testing.T) {
 	for _, tt := range tests {
 		result := scheme.EvalGlobal(List(Symbol("round"), tt.input))
 		if result != tt.expected {
-			t.Errorf("Expected (round %v) to be %v but was: %v", tt.input, tt.expected, result)
+			t.Errorf("Expected (round %v) to be %v but was: %v (%T)", tt.input, tt.expected, result, result)
 		}
 	}
 }
@@ -394,7 +395,7 @@ func TestTruncate(t *testing.T) {
 	scheme := New()
 	tests := []struct {
 		input    float64
-		expected float64
+		expected int64
 	}{
 		{3.7, 3},
 		{-3.7, -3},
@@ -403,7 +404,7 @@ func TestTruncate(t *testing.T) {
 	for _, tt := range tests {
 		result := scheme.EvalGlobal(List(Symbol("truncate"), tt.input))
 		if result != tt.expected {
-			t.Errorf("Expected (truncate %v) to be %v but was: %v", tt.input, tt.expected, result)
+			t.Errorf("Expected (truncate %v) to be %v but was: %v (%T)", tt.input, tt.expected, result, result)
 		}
 	}
 }
@@ -411,12 +412,12 @@ func TestTruncate(t *testing.T) {
 func TestFloorQuotient(t *testing.T) {
 	scheme := New()
 	result := scheme.EvalGlobal(List(Symbol("floor-quotient"), float64(7), float64(2)))
-	if result != float64(3) {
-		t.Errorf("Expected (floor-quotient 7 2) to be 3 but was: %v", result)
+	if result != int64(3) {
+		t.Errorf("Expected (floor-quotient 7 2) to be 3 but was: %v (%T)", result, result)
 	}
 	result = scheme.EvalGlobal(List(Symbol("floor-quotient"), float64(-7), float64(2)))
-	if result != float64(-4) {
-		t.Errorf("Expected (floor-quotient -7 2) to be -4 but was: %v", result)
+	if result != int64(-4) {
+		t.Errorf("Expected (floor-quotient -7 2) to be -4 but was: %v (%T)", result, result)
 	}
 }
 
@@ -434,14 +435,15 @@ func TestFloorRemainder(t *testing.T) {
 
 func TestExactInexact(t *testing.T) {
 	scheme := New()
-	// exact and inexact are identity for float64-only implementation
+	// exact converts float64 to int64 (truncates)
 	result := scheme.EvalGlobal(List(Symbol("exact"), float64(3.5)))
-	if result != float64(3.5) {
-		t.Errorf("Expected (exact 3.5) to be 3.5 but was: %v", result)
+	if result != int64(3) {
+		t.Errorf("Expected (exact 3.5) to be 3 but was: %v (%T)", result, result)
 	}
+	// inexact on float64 stays float64
 	result = scheme.EvalGlobal(List(Symbol("inexact"), float64(3)))
 	if result != float64(3) {
-		t.Errorf("Expected (inexact 3) to be 3 but was: %v", result)
+		t.Errorf("Expected (inexact 3) to be 3.0 but was: %v (%T)", result, result)
 	}
 }
 

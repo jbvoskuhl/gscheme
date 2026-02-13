@@ -67,13 +67,13 @@ func primitiveCharDigitValue(args Pair) interface{} {
 	if arg < '0' || arg > '9' {
 		return false
 	} else {
-		return float64(arg - '0')
+		return int64(arg - '0')
 	}
 }
 
 func primitiveCharToInteger(args Pair) interface{} {
 	arg := characterConstraint(First(args))
-	return float64(arg)
+	return int64(arg)
 }
 
 func primitiveIntegerToChar(args Pair) interface{} {

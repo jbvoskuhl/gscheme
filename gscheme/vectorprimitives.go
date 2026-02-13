@@ -64,10 +64,10 @@ func primitiveVector(args Pair) interface{} {
 	return elems
 }
 
-// primitiveVectorLength returns the length of a vector as float64.
+// primitiveVectorLength returns the length of a vector.
 func primitiveVectorLength(args Pair) interface{} {
 	vec := vectorConstraint(First(args))
-	return float64(len(vec))
+	return int64(len(vec))
 }
 
 // primitiveVectorRef returns the element at index k.
@@ -242,20 +242,20 @@ func primitiveBytevector(args Pair) interface{} {
 	return bytes
 }
 
-// primitiveBytevectorLength returns the length of a bytevector as float64.
+// primitiveBytevectorLength returns the length of a bytevector.
 func primitiveBytevectorLength(args Pair) interface{} {
 	bv := bytevectorConstraint(First(args))
-	return float64(len(bv))
+	return int64(len(bv))
 }
 
-// primitiveBytevectorU8Ref returns the byte at index as float64.
+// primitiveBytevectorU8Ref returns the byte at index.
 func primitiveBytevectorU8Ref(args Pair) interface{} {
 	bv := bytevectorConstraint(First(args))
 	k := indexConstraint(Second(args))
 	if k < 0 || k >= len(bv) {
 		return Err(fmt.Sprintf("bytevector-u8-ref: index %d out of range for bytevector of length %d", k, len(bv)), args)
 	}
-	return float64(bv[k])
+	return int64(bv[k])
 }
 
 // primitiveBytevectorU8Set sets the byte at index.

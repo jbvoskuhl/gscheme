@@ -393,6 +393,13 @@ func parseNumber(s string) interface{} {
 		return complex(realPart, imagPart)
 	}
 
+	// Try to parse as an integer first (no '.', 'e', or 'E')
+	if !strings.ContainsAny(s, ".eE") {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return n
+		}
+	}
+
 	// Try to parse as a regular float
 	if f, err := strconv.ParseFloat(s, 64); err == nil {
 		return f

@@ -37,22 +37,28 @@ func installComplexPrimitives(environment Environment) {
 // In Scheme, all numbers are complex (reals are complex with zero imaginary part).
 func primitiveComplexP(args Pair) interface{} {
 	x := First(args)
-	_, isFloat := x.(float64)
-	_, isComplex := x.(complex128)
-	return isFloat || isComplex
+	switch x.(type) {
+	case int64, float64, complex128:
+		return true
+	default:
+		return false
+	}
 }
 
 // primitiveRealP implements real? which tests if the argument is a real number.
 // A complex number is real if its imaginary part is zero.
 func primitiveRealP(args Pair) interface{} {
 	x := First(args)
-	if _, ok := x.(float64); ok {
+	switch v := x.(type) {
+	case int64:
 		return true
+	case float64:
+		return true
+	case complex128:
+		return imag(v) == 0
+	default:
+		return false
 	}
-	if c, ok := x.(complex128); ok {
-		return imag(c) == 0
-	}
-	return false
 }
 
 // primitiveMakeRectangular implements make-rectangular which creates a complex number
@@ -82,63 +88,97 @@ func primitiveMakePolar(args Pair) interface{} {
 // primitiveRealPart implements real-part which returns the real part of a complex number.
 func primitiveRealPart(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
-		return f
+	switch v := x.(type) {
+	case int64:
+		return v
+	case float64:
+		return v
+	case complex128:
+		return real(v)
+	default:
+		return Err("real-part: expected number", args)
 	}
-	if c, ok := x.(complex128); ok {
-		return real(c)
-	}
-	return Err("real-part: expected number", args)
 }
 
 // primitiveImagPart implements imag-part which returns the imaginary part of a complex number.
 func primitiveImagPart(args Pair) interface{} {
 	x := First(args)
-	if _, ok := x.(float64); ok {
+	switch v := x.(type) {
+	case int64:
+		return int64(0)
+	case float64:
+		_ = v
 		return float64(0)
+	case complex128:
+		return imag(v)
+	default:
+		return Err("imag-part: expected number", args)
 	}
-	if c, ok := x.(complex128); ok {
-		return imag(c)
-	}
-	return Err("imag-part: expected number", args)
 }
 
 // primitiveMagnitude implements magnitude which returns the absolute value of a complex number.
 func primitiveMagnitude(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
-		return math.Abs(f)
+	switch v := x.(type) {
+	case int64:
+		if v < 0 {
+			return -v
+		}
+		return v
+	case float64:
+		return math.Abs(v)
+	case complex128:
+		return cmplx.Abs(v)
+	default:
+		return Err("magnitude: expected number", args)
 	}
-	if c, ok := x.(complex128); ok {
-		return cmplx.Abs(c)
-	}
-	return Err("magnitude: expected number", args)
 }
 
 // primitiveAngle implements angle which returns the angle (argument) of a complex number in radians.
 func primitiveAngle(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
-		if f >= 0 {
+	switch v := x.(type) {
+	case int64:
+		if v >= 0 {
 			return float64(0)
 		}
 		return math.Pi
+	case float64:
+		if v >= 0 {
+			return float64(0)
+		}
+		return math.Pi
+	case complex128:
+		return cmplx.Phase(v)
+	default:
+		return Err("angle: expected number", args)
 	}
-	if c, ok := x.(complex128); ok {
-		return cmplx.Phase(c)
+}
+
+// numToFloat64 converts int64 or float64 to float64 for math functions.
+func numToFloat64(x interface{}) (float64, bool) {
+	switch v := x.(type) {
+	case int64:
+		return float64(v), true
+	case float64:
+		return v, true
+	default:
+		return 0, false
 	}
-	return Err("angle: expected number", args)
 }
 
 // primitiveSqrt implements sqrt which returns the square root of a number.
 // For negative reals, returns a complex result.
 func primitiveSqrt(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		if f >= 0 {
-			return math.Sqrt(f)
+			result := math.Sqrt(f)
+			if IsInt64(x) && result == math.Trunc(result) {
+				return int64(result)
+			}
+			return result
 		}
-		// Negative real: return complex result
 		return complex(0, math.Sqrt(-f))
 	}
 	if c, ok := x.(complex128); ok {
@@ -154,7 +194,7 @@ func primitiveSqrt(args Pair) interface{} {
 // primitiveExp implements exp (e^x) for real and complex numbers.
 func primitiveExp(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		return math.Exp(f)
 	}
 	if c, ok := x.(complex128); ok {
@@ -170,11 +210,10 @@ func primitiveExp(args Pair) interface{} {
 // primitiveLog implements log (natural logarithm) for real and complex numbers.
 func primitiveLog(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		if f > 0 {
 			return math.Log(f)
 		}
-		// Non-positive: return complex result
 		return cmplx.Log(complex(f, 0))
 	}
 	if c, ok := x.(complex128); ok {
@@ -190,7 +229,7 @@ func primitiveLog(args Pair) interface{} {
 // primitiveSin implements sin for real and complex numbers.
 func primitiveSin(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		return math.Sin(f)
 	}
 	if c, ok := x.(complex128); ok {
@@ -206,7 +245,7 @@ func primitiveSin(args Pair) interface{} {
 // primitiveCos implements cos for real and complex numbers.
 func primitiveCos(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		return math.Cos(f)
 	}
 	if c, ok := x.(complex128); ok {
@@ -222,7 +261,7 @@ func primitiveCos(args Pair) interface{} {
 // primitiveTan implements tan for real and complex numbers.
 func primitiveTan(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		return math.Tan(f)
 	}
 	if c, ok := x.(complex128); ok {
@@ -238,13 +277,11 @@ func primitiveTan(args Pair) interface{} {
 // primitiveAsin implements asin for real and complex numbers.
 func primitiveAsin(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		if f >= -1 && f <= 1 {
 			return math.Asin(f)
 		}
-		// Outside [-1,1]: return complex result
-		result := cmplx.Asin(complex(f, 0))
-		return result
+		return cmplx.Asin(complex(f, 0))
 	}
 	if c, ok := x.(complex128); ok {
 		result := cmplx.Asin(c)
@@ -259,13 +296,11 @@ func primitiveAsin(args Pair) interface{} {
 // primitiveAcos implements acos for real and complex numbers.
 func primitiveAcos(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		if f >= -1 && f <= 1 {
 			return math.Acos(f)
 		}
-		// Outside [-1,1]: return complex result
-		result := cmplx.Acos(complex(f, 0))
-		return result
+		return cmplx.Acos(complex(f, 0))
 	}
 	if c, ok := x.(complex128); ok {
 		result := cmplx.Acos(c)
@@ -283,13 +318,11 @@ func primitiveAcos(args Pair) interface{} {
 func primitiveAtan(args Pair) interface{} {
 	x := First(args)
 	if Rest(args) != nil {
-		// Two-argument form: atan2(y, x)
 		y := Num(x)
 		xVal := Num(Second(args))
 		return math.Atan2(y, xVal)
 	}
-	// One-argument form
-	if f, ok := x.(float64); ok {
+	if f, ok := numToFloat64(x); ok {
 		return math.Atan(f)
 	}
 	if c, ok := x.(complex128); ok {
@@ -305,6 +338,8 @@ func primitiveAtan(args Pair) interface{} {
 // ToComplex converts a Scheme number to complex128.
 func ToComplex(x interface{}) complex128 {
 	switch v := x.(type) {
+	case int64:
+		return complex(float64(v), 0)
 	case float64:
 		return complex(v, 0)
 	case complex128:

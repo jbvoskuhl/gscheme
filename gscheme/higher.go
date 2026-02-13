@@ -144,14 +144,22 @@ func primitiveForEach(interpreter Scheme, args Pair, environment Environment) in
 }
 
 // eqv compares two values using eqv? semantics (identity + number/char value comparison).
+// Per R7RS, (eqv? 1 1.0) is #f (different exactness).
 func eqv(x, y interface{}) bool {
 	if x == y {
 		return true
+	}
+	if xInt, ok := x.(int64); ok {
+		if yInt, ok := y.(int64); ok {
+			return xInt == yInt
+		}
+		return false
 	}
 	if xNum, ok := x.(float64); ok {
 		if yNum, ok := y.(float64); ok {
 			return xNum == yNum
 		}
+		return false
 	}
 	if xChar, ok := x.(rune); ok {
 		if yChar, ok := y.(rune); ok {

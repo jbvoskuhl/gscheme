@@ -65,13 +65,13 @@ func TestStringLength(t *testing.T) {
 
 	// (string-length "hello") => 5
 	result := interpreter.EvalGlobal(List(Symbol("string-length"), "hello"))
-	if result != float64(5) {
+	if result != int64(5) {
 		t.Errorf("Expected 5 but got: %v", result)
 	}
 
 	// (string-length "") => 0
 	result = interpreter.EvalGlobal(List(Symbol("string-length"), ""))
-	if result != float64(0) {
+	if result != int64(0) {
 		t.Errorf("Expected 0 but got: %v", result)
 	}
 }
@@ -354,7 +354,7 @@ func TestStringToNumber(t *testing.T) {
 
 	// (string->number "42") => 42
 	result := interpreter.EvalGlobal(List(Symbol("string->number"), "42"))
-	if result != float64(42) {
+	if result != int64(42) {
 		t.Errorf("Expected 42 but got: %v", result)
 	}
 
@@ -366,7 +366,7 @@ func TestStringToNumber(t *testing.T) {
 
 	// (string->number "ff" 16) => 255
 	result = interpreter.EvalGlobal(List(Symbol("string->number"), "ff", float64(16)))
-	if result != float64(255) {
+	if result != int64(255) {
 		t.Errorf("Expected 255 but got: %v", result)
 	}
 

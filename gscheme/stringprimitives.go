@@ -72,7 +72,7 @@ func primitiveString(args Pair) interface{} {
 // primitiveStringLength returns the length of a string in characters (runes).
 func primitiveStringLength(args Pair) interface{} {
 	s := stringConstraint(First(args))
-	return float64(utf8.RuneCountInString(s))
+	return int64(utf8.RuneCountInString(s))
 }
 
 // primitiveStringRef returns the character at index k.
@@ -171,10 +171,12 @@ func primitiveNumberToString(args Pair) interface{} {
 	if Second(args) != nil {
 		radix = indexConstraint(Second(args))
 	}
+	if v, ok := num.(int64); ok {
+		return strconv.FormatInt(v, radix)
+	}
 	if radix == 10 {
 		return fmt.Sprint(num)
 	}
-	// For non-decimal radix, convert to integer first
 	n := int64(Num(num))
 	return strconv.FormatInt(n, radix)
 }
@@ -213,6 +215,12 @@ func primitiveStringToNumber(args Pair) interface{} {
 		radix = indexConstraint(Second(args))
 	}
 	if radix == 10 {
+		// Try integer first
+		if !strings.ContainsAny(s, ".eE") {
+			if n, err := strconv.ParseInt(s, 10, 64); err == nil {
+				return n
+			}
+		}
 		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
 			return false
@@ -223,7 +231,7 @@ func primitiveStringToNumber(args Pair) interface{} {
 	if err != nil {
 		return false
 	}
-	return float64(n)
+	return n
 }
 
 // primitiveStringMap applies a procedure to each character of a string and builds a result string.

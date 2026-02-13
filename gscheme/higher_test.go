@@ -384,7 +384,7 @@ func TestQuasiquote(t *testing.T) {
 
 	// Quasiquote with number
 	result = eval("`42")
-	if result != float64(42) {
+	if result != int64(42) {
 		t.Errorf("Expected 42 but got: %v", result)
 	}
 }
@@ -421,7 +421,7 @@ func TestDo(t *testing.T) {
 		(do ((n 0 (+ n 1)))
 		    ((= n 3) n))
 	`)
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 
@@ -431,7 +431,7 @@ func TestDo(t *testing.T) {
 		     (sum 0 (+ sum n)))
 		    ((> n 5) sum))
 	`)
-	if result != float64(15) {
+	if result != int64(15) {
 		t.Errorf("Expected 15 but got: %v", result)
 	}
 
@@ -449,7 +449,7 @@ func TestDo(t *testing.T) {
 func TestWhen(t *testing.T) {
 	// when true: body is evaluated
 	result := eval("(when #t 1 2 3)")
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 
@@ -461,7 +461,7 @@ func TestWhen(t *testing.T) {
 
 	// when with side effects
 	result = eval("(define x 0) (when (> 5 3) (set! x 10)) x")
-	if result != float64(10) {
+	if result != int64(10) {
 		t.Errorf("Expected 10 but got: %v", result)
 	}
 }
@@ -469,7 +469,7 @@ func TestWhen(t *testing.T) {
 func TestUnless(t *testing.T) {
 	// unless false: body is evaluated
 	result := eval("(unless #f 1 2 3)")
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 
@@ -481,7 +481,7 @@ func TestUnless(t *testing.T) {
 
 	// unless with side effects
 	result = eval("(define x 0) (unless (< 5 3) (set! x 10)) x")
-	if result != float64(10) {
+	if result != int64(10) {
 		t.Errorf("Expected 10 but got: %v", result)
 	}
 }
@@ -489,7 +489,7 @@ func TestUnless(t *testing.T) {
 func TestDelayForce(t *testing.T) {
 	// Basic delay/force
 	result := eval("(force (delay (+ 1 2)))")
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 
@@ -501,7 +501,7 @@ func TestDelayForce(t *testing.T) {
 		(force p)
 		count
 	`)
-	if result != float64(1) {
+	if result != int64(1) {
 		t.Errorf("Expected 1 (promise should memoize) but got: %v", result)
 	}
 

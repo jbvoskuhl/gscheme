@@ -304,7 +304,7 @@ func primitiveList(args Pair) interface{} {
 
 // primitiveLength returns the length of a list.
 func primitiveLength(args Pair) interface{} {
-	return Len(First(args))
+	return int64(Len(First(args)))
 }
 
 // primitiveReverse exposes the Reverse utility as a primitive.
@@ -312,12 +312,16 @@ func primitiveReverse(args Pair) interface{} {
 	return Reverse(First(args))
 }
 
-// indexConstraint converts a float64 number to an integer index.
+// indexConstraint converts a number to an integer index.
 func indexConstraint(object interface{}) int {
-	if f, ok := object.(float64); ok {
-		return int(f)
+	switch v := object.(type) {
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return int(uint64Constraint(object))
 	}
-	return int(uint64Constraint(object))
 }
 
 // primitiveListTail returns the sublist of list starting at index k.

@@ -85,13 +85,23 @@ func bytevectorConstraint(object interface{}) []uint8 {
 	return result
 }
 
-// byteConstraint validates that a float64 value is in the 0-255 range and returns it as uint8.
+// byteConstraint validates that a value is in the 0-255 range and returns it as uint8.
 func byteConstraint(object interface{}) uint8 {
-	f, ok := object.(float64)
-	if !ok || f < 0 || f > 255 || f != float64(int(f)) {
+	switch v := object.(type) {
+	case int64:
+		if v < 0 || v > 255 {
+			Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+		}
+		return uint8(v)
+	case float64:
+		if v < 0 || v > 255 || v != float64(int(v)) {
+			Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+		}
+		return uint8(v)
+	default:
 		Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+		return 0
 	}
-	return uint8(f)
 }
 
 // integerConstraint is used to enforce integer type constraints within primitives.

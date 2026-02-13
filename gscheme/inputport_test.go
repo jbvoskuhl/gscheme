@@ -7,7 +7,7 @@ import (
 func TestReadNumber(t *testing.T) {
 	input := NewInputPortFromString("42")
 	result := input.Read()
-	if result != float64(42) {
+	if result != int64(42) {
 		t.Errorf("Expected 42, got %v (%T)", result, result)
 	}
 }
@@ -107,13 +107,13 @@ func TestReadSimpleList(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected Pair, got %v (%T)", result, result)
 	}
-	if First(pair) != float64(1) {
+	if First(pair) != int64(1) {
 		t.Errorf("Expected first element 1, got %v", First(pair))
 	}
-	if First(Rest(pair)) != float64(2) {
+	if First(Rest(pair)) != int64(2) {
 		t.Errorf("Expected second element 2, got %v", First(Rest(pair)))
 	}
-	if First(Rest(Rest(pair))) != float64(3) {
+	if First(Rest(Rest(pair))) != int64(3) {
 		t.Errorf("Expected third element 3, got %v", First(Rest(Rest(pair))))
 	}
 }
@@ -196,10 +196,10 @@ func TestReadDottedPair(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected Pair, got %v (%T)", result, result)
 	}
-	if First(pair) != float64(1) {
+	if First(pair) != int64(1) {
 		t.Errorf("Expected first element 1, got %v", First(pair))
 	}
-	if Rest(pair) != float64(2) {
+	if Rest(pair) != int64(2) {
 		t.Errorf("Expected rest element 2, got %v", Rest(pair))
 	}
 }
@@ -207,7 +207,7 @@ func TestReadDottedPair(t *testing.T) {
 func TestReadComment(t *testing.T) {
 	input := NewInputPortFromString("; this is a comment\n42")
 	result := input.Read()
-	if result != float64(42) {
+	if result != int64(42) {
 		t.Errorf("Expected 42, got %v (%T)", result, result)
 	}
 }
@@ -222,20 +222,20 @@ func TestReadVector(t *testing.T) {
 	if len(vec) != 3 {
 		t.Errorf("Expected vector of length 3, got %d", len(vec))
 	}
-	if vec[0] != float64(1) {
+	if vec[0] != int64(1) {
 		t.Errorf("Expected first element 1, got %v", vec[0])
 	}
 }
 
 func TestReadMultipleExpressions(t *testing.T) {
 	input := NewInputPortFromString("1 2 3")
-	if input.Read() != float64(1) {
+	if input.Read() != int64(1) {
 		t.Error("Expected 1")
 	}
-	if input.Read() != float64(2) {
+	if input.Read() != int64(2) {
 		t.Error("Expected 2")
 	}
-	if input.Read() != float64(3) {
+	if input.Read() != int64(3) {
 		t.Error("Expected 3")
 	}
 	if !IsEOF(input.Read()) {
@@ -257,7 +257,7 @@ func TestLoadCodeWithArithmetic(t *testing.T) {
 	input := NewInputPortFromString("(+ 1 2)")
 	expr := input.Read()
 	result := s.EvalGlobal(expr)
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3, got %v (%T)", result, result)
 	}
 }
@@ -272,7 +272,7 @@ func TestLoadCodeQuote(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected Pair, got %v (%T)", result, result)
 	}
-	if First(pair) != float64(1) {
+	if First(pair) != int64(1) {
 		t.Errorf("Expected first element 1, got %v", First(pair))
 	}
 }
@@ -298,7 +298,7 @@ func TestEvalParsedExpression(t *testing.T) {
 	input := NewInputPortFromString("(+ 1 2)")
 	expr := input.Read()
 	result := s.EvalGlobal(expr)
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3, got %v (%T)", result, result)
 	}
 }

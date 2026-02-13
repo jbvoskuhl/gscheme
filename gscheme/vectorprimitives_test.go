@@ -92,14 +92,14 @@ func TestVectorLength(t *testing.T) {
 	// (vector-length (vector 1 2 3)) => 3
 	result := interpreter.EvalGlobal(List(Symbol("vector-length"),
 		List(Symbol("vector"), float64(1), float64(2), float64(3))))
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 
 	// (vector-length (vector)) => 0
 	result = interpreter.EvalGlobal(List(Symbol("vector-length"),
 		List(Symbol("vector"))))
-	if result != float64(0) {
+	if result != int64(0) {
 		t.Errorf("Expected 0 but got: %v", result)
 	}
 }
@@ -372,7 +372,7 @@ func TestBytevectorLength(t *testing.T) {
 	// (bytevector-length (bytevector 1 2 3)) => 3
 	result := interpreter.EvalGlobal(List(Symbol("bytevector-length"),
 		List(Symbol("bytevector"), float64(1), float64(2), float64(3))))
-	if result != float64(3) {
+	if result != int64(3) {
 		t.Errorf("Expected 3 but got: %v", result)
 	}
 }
@@ -384,7 +384,7 @@ func TestBytevectorU8Ref(t *testing.T) {
 	result := interpreter.EvalGlobal(List(Symbol("bytevector-u8-ref"),
 		List(Symbol("bytevector"), float64(10), float64(20), float64(30)),
 		float64(1)))
-	if result != float64(20) {
+	if result != int64(20) {
 		t.Errorf("Expected 20 but got: %v", result)
 	}
 }
@@ -397,7 +397,7 @@ func TestBytevectorU8Set(t *testing.T) {
 		List(List(Symbol("bv"), List(Symbol("bytevector"), float64(1), float64(2), float64(3)))),
 		List(Symbol("bytevector-u8-set!"), Symbol("bv"), float64(1), float64(99)),
 		List(Symbol("bytevector-u8-ref"), Symbol("bv"), float64(1))))
-	if result != float64(99) {
+	if result != int64(99) {
 		t.Errorf("Expected 99 but got: %v", result)
 	}
 }

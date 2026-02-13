@@ -131,17 +131,17 @@ func TestPrimitiveDigitValue(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("digit-value"), '0')
 	value := interpreter.EvalGlobal(expression)
-	if float64(0) != value {
+	if int64(0) != value {
 		t.Errorf("The expression (digit-value \\#0) did not evaluate to 0, instead was: %v.", value)
 	}
 	expression = List(Symbol("digit-value"), '5')
 	value = interpreter.EvalGlobal(expression)
-	if float64(5) != value {
+	if int64(5) != value {
 		t.Errorf("The expression (digit-value \\#5) did not evaluate to 5, instead was: %v.", value)
 	}
 	expression = List(Symbol("digit-value"), '9')
 	value = interpreter.EvalGlobal(expression)
-	if float64(9) != value {
+	if int64(9) != value {
 		t.Errorf("The expression (digit-value \\#9) did not evaluate to 9, instead was: %v.", value)
 	}
 	expression = List(Symbol("digit-value"), 'k')
@@ -155,14 +155,14 @@ func TestPrimitiveCharToInteger(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("char->integer"), 'A')
 	value := interpreter.EvalGlobal(expression)
-	if float64(65) != value {
-		t.Errorf("The expression (char->integer #\\A) did not evaluate to 65.0, instead we got: %v (%T).", value, value)
+	if int64(65) != value {
+		t.Errorf("The expression (char->integer #\\A) did not evaluate to 65, instead we got: %v (%T).", value, value)
 	}
 	// Unicode character
 	expression = List(Symbol("char->integer"), '\u03BB') // lambda
 	value = interpreter.EvalGlobal(expression)
-	if float64(955) != value {
-		t.Errorf("The expression (char->integer #\\λ) did not evaluate to 955.0, instead we got: %v.", value)
+	if int64(955) != value {
+		t.Errorf("The expression (char->integer #\\λ) did not evaluate to 955, instead we got: %v.", value)
 	}
 }
 
