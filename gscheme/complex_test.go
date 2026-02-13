@@ -12,11 +12,10 @@ func TestParseComplexNumbers(t *testing.T) {
 	}{
 		{"3+4i", complex(3, 4)},
 		{"3-4i", complex(3, -4)},
-		{"5i", complex(0, 5)},
+		{"+5i", complex(0, 5)},
 		{"-5i", complex(0, -5)},
 		{"+i", complex(0, 1)},
 		{"-i", complex(0, -1)},
-		{"i", complex(0, 1)},
 		{"3.5+2.5i", complex(3.5, 2.5)},
 		{"0+1i", complex(0, 1)},
 		{"1+0i", complex(1, 0)},
@@ -31,6 +30,27 @@ func TestParseComplexNumbers(t *testing.T) {
 	}
 }
 
+func TestBareIParsesAsSymbol(t *testing.T) {
+	// Per R7RS, bare "i" is a valid identifier (symbol), not a complex number.
+	port := NewInputPortFromString("i")
+	result := port.Read()
+	if result != Symbol("i") {
+		t.Errorf("Read(\"i\") = %v (%T), want symbol i", result, result)
+	}
+}
+
+func TestDigitPrefixedNonNumberIsError(t *testing.T) {
+	// Per R7RS, tokens starting with a digit that aren't valid numbers are read errors.
+	inputs := []string{"1i", "5i", "1abc", "3x"}
+	for _, input := range inputs {
+		port := NewInputPortFromString(input)
+		result := port.Read()
+		if _, ok := result.(Error); !ok {
+			t.Errorf("Read(%q) = %v (%T), want Error", input, result, result)
+		}
+	}
+}
+
 func TestStringifyComplex(t *testing.T) {
 	tests := []struct {
 		input    complex128
@@ -38,7 +58,7 @@ func TestStringifyComplex(t *testing.T) {
 	}{
 		{complex(3, 4), "3+4i"},
 		{complex(3, -4), "3-4i"},
-		{complex(0, 5), "5i"},
+		{complex(0, 5), "+5i"},
 		{complex(0, -5), "-5i"},
 		{complex(0, 1), "+i"},
 		{complex(0, -1), "-i"},

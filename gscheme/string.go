@@ -96,6 +96,9 @@ func stringifyComplex(c complex128) string {
 		} else if i == -1 {
 			return "-i"
 		}
+		if i > 0 {
+			return fmt.Sprintf("+%vi", i)
+		}
 		return fmt.Sprintf("%vi", i)
 	}
 	if i == 1 {

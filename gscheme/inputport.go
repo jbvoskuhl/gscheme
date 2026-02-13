@@ -376,10 +376,13 @@ func (p *InputPort) nextToken() interface{} {
 		s := p.buff.String()
 
 		// Try to parse as a number if it starts with a digit, +, -, or .
-		// Also check for bare "i" which is the imaginary unit
-		if c == '.' || c == '+' || c == '-' || c == 'i' || c == 'I' || (c >= '0' && c <= '9') {
+		if c == '.' || c == '+' || c == '-' || (c >= '0' && c <= '9') {
 			if num := parseNumber(s); num != nil {
 				return num
+			}
+			// Starts with a digit but isn't a valid number — error per R7RS
+			if c >= '0' && c <= '9' {
+				return NewError("Invalid number literal: "+s, nil)
 			}
 		}
 		// R7RS: identifiers are case-insensitive, fold to lowercase.
@@ -399,11 +402,13 @@ func listToVector(list interface{}) []interface{} {
 
 // parseNumber attempts to parse a string as a number (real or complex).
 // Returns nil if the string is not a valid number.
+// Per R7RS, complex literals require an explicit sign before the imaginary part:
+// +i, -i, +<num>i, -<num>i, <real>+<num>i, <real>-<num>i.
 func parseNumber(s string) interface{} {
 	s = strings.ToLower(s)
 
-	// Check for pure imaginary: +i, -i, or just i
-	if s == "i" || s == "+i" {
+	// Check for pure imaginary: +i, -i (bare "i" is a symbol per R7RS)
+	if s == "+i" {
 		return complex(0, 1)
 	}
 	if s == "-i" {
@@ -414,7 +419,8 @@ func parseNumber(s string) interface{} {
 	if strings.HasSuffix(s, "i") {
 		s = s[:len(s)-1] // Remove trailing 'i'
 
-		// Find the last + or - that's not at the start and not part of exponent
+		// Find the last + or - that's not at the start and not part of exponent.
+		// R7RS requires this sign — without it the imaginary part is invalid.
 		splitIdx := -1
 		for i := len(s) - 1; i > 0; i-- {
 			if (s[i] == '+' || s[i] == '-') && s[i-1] != 'e' && s[i-1] != 'E' {
@@ -424,15 +430,19 @@ func parseNumber(s string) interface{} {
 		}
 
 		if splitIdx == -1 {
-			// Pure imaginary like "5i" or "-3i"
-			if s == "" || s == "+" {
+			// No sign found separating real from imaginary.
+			// Only valid forms here are "+<num>i" or "-<num>i" (pure imaginary with sign).
+			if s == "+" {
 				return complex(0, 1)
 			}
 			if s == "-" {
 				return complex(0, -1)
 			}
-			if imag, err := strconv.ParseFloat(s, 64); err == nil {
-				return complex(0, imag)
+			// Must start with + or - to be a valid pure imaginary
+			if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
+				if imag, err := strconv.ParseFloat(s, 64); err == nil {
+					return complex(0, imag)
+				}
 			}
 			return nil
 		}
