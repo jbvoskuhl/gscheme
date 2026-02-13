@@ -30,7 +30,6 @@ type scheme struct {
 // as needed.  Extend the set of built-in primitives to allow your go code to interact with Scheme.
 func New() Scheme {
 	result := &scheme{environment: NewRootEnvironment()}
-	installSpecialForms(result.environment)
 	installPrimitives(result.environment)
 	installBooleanPrimitives(result.environment)
 	installCharacterPrimitives(result.environment)
@@ -105,11 +104,9 @@ func (s *scheme) Environment() Environment {
 }
 
 // Eval will evaluate a single Scheme expression with respect to a given environment and return the result.
+// Special forms are handled inline in the for loop to enable tail call optimization:
+// in tail positions we reassign x and continue the loop rather than recursively calling Eval.
 func (s *scheme) Eval(x interface{}, environment Environment) (result interface{}) {
-	// The purpose of the while loop is to allow tail recursion.
-	// The idea is that in a tail recursive position, we do "x = ..."
-	// and loop, rather than doing "return eval(...)".
-
 	// If there was a scheme error raise'd by this eval, return it here.
 	defer func() {
 		recovered := recover()
@@ -122,7 +119,8 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			panic(err)
 		}
 	}()
-	// Loop so we can implement tail recursion for special forms that require it.
+	// Loop so we can implement tail call optimization. In tail positions we
+	// reassign x (and possibly environment) and continue rather than returning eval(...).
 	for {
 		switch value := x.(type) {
 		case Symbol:
@@ -132,11 +130,159 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			}
 			return variable
 		case Pair:
-			return s.EvalCombination(s.Eval(First(value), environment), RestPair(value), environment)
+			fn := First(value)
+			args := RestPair(value)
+
+			// Check for special forms by symbol name
+			if sym, ok := fn.(Symbol); ok {
+				switch sym {
+				case "quote":
+					return First(args)
+
+				case "begin":
+					// Evaluate all but last expression eagerly; tail-call the last
+					for args != nil && Rest(args) != nil {
+						s.Eval(First(args), environment)
+						args = RestPair(args)
+					}
+					if args == nil {
+						return nil
+					}
+					x = First(args)
+					continue
+
+				case "if":
+					test := s.Eval(First(args), environment)
+					if Truth(test) {
+						x = Second(args)
+					} else {
+						x = Third(args)
+					}
+					continue
+
+				case "cond":
+					x = s.reduceCond(args, environment)
+					continue
+
+				case "define":
+					first := First(args)
+					if firstPair, ok := first.(Pair); ok {
+						// Function shorthand: (define (name params...) body...)
+						name, ok := First(firstPair).(Symbol)
+						if !ok {
+							return Err("define: first element must be a symbol", List(first))
+						}
+						params := Rest(firstPair)
+						body := Rest(args)
+						lambda := NewClosure(params, body, environment)
+						lambda.SetName(name)
+						return environment.Define(name, lambda)
+					}
+					// Simple form: (define name value)
+					name, ok := first.(Symbol)
+					if !ok {
+						return Err("define: expected symbol", List(first))
+					}
+					val := s.Eval(Second(args), environment)
+					if proc, ok := val.(Procedure); ok && proc.Name() == "anonymous procedure" {
+						proc.SetName(name)
+					}
+					return environment.Define(name, val)
+
+				case "set!":
+					name, ok := First(args).(Symbol)
+					if !ok {
+						return Err("set!: expected symbol", List(First(args)))
+					}
+					val := s.Eval(Second(args), environment)
+					if !environment.Set(name, val) {
+						return Err("set!: unbound variable", List(name))
+					}
+					return val
+
+				case "lambda":
+					params := First(args)
+					body := Rest(args)
+					return NewClosure(params, body, environment)
+
+				case "macro":
+					params := First(args)
+					body := Rest(args)
+					return NewMacro(params, body, environment)
+				}
+			}
+
+			// Not a special form — evaluate the operator
+			fn = s.Eval(fn, environment)
+
+			// Macro: expand and loop
+			if m, ok := fn.(Macro); ok {
+				x = m.Expand(s, args, environment)
+				continue
+			}
+
+			// Closure: inline tail call — bind args and loop on body
+			if c, ok := fn.(Closure); ok {
+				evaledArgs := s.EvalList(args, environment)
+				environment = NewChildEnvironmentWithBindings(c.Params(), evaledArgs, c.Env())
+				x = c.Body()
+				continue
+			}
+
+			// Primitive or other applyer: call and return
+			p, ok := fn.(Applyer)
+			if !ok {
+				return Err("Bad Procedure: ", List(fn))
+			}
+			return p.Apply(s, args, environment)
+
 		default:
 			return x
 		}
 	}
+}
+
+// reduceCond processes cond clauses and returns an expression to be evaluated in the
+// current environment, preserving tail position. When a clause matches:
+//   - No body: returns (quote <test-result>) to yield the test value
+//   - => proc: returns (proc (quote <test-result>))
+//   - Normal body: returns (begin body...)
+func (s *scheme) reduceCond(clauses Pair, environment Environment) interface{} {
+	for clauses != nil {
+		clause := First(clauses)
+		clausePair, ok := clause.(Pair)
+		if !ok {
+			Err("cond: bad clause", List(clause))
+		}
+
+		test := First(clausePair)
+		var result interface{}
+
+		if test == Symbol("else") {
+			result = true
+		} else {
+			result = s.Eval(test, environment)
+		}
+
+		if Truth(result) {
+			rest := Rest(clausePair)
+			if rest == nil {
+				// No body — return (quote result) so the test value is yielded
+				return List(Symbol("quote"), result)
+			}
+			if First(rest) == Symbol("=>") {
+				// (test => proc) — return (proc (quote result))
+				proc := Second(rest)
+				return List(proc, List(Symbol("quote"), result))
+			}
+			// Normal body — return (begin body...) for tail evaluation
+			return Cons(Symbol("begin"), rest)
+		}
+
+		clauses = RestPair(clauses)
+	}
+	// No clause matched — return a self-evaluating false
+	return false
 }
 
 // EvalList evaluates each expression in turn and returns the last one.
@@ -146,21 +292,6 @@ func (s *scheme) EvalList(list Pair, environment Environment) Pair {
 	} else {
 		return NewPair(s.Eval(First(list), environment), s.EvalList(RestPair(list), environment))
 	}
-}
-
-// EvalCombination evaluates the first item in the list and applies the remaining arguments to it.
-func (s *scheme) EvalCombination(first interface{}, rest Pair, environment Environment) interface{} {
-	// Check if it's a macro - if so, expand and evaluate the result
-	if m, ok := first.(Macro); ok {
-		expansion := m.Expand(s, rest, environment)
-		return s.Eval(expansion, environment)
-	}
-	// Otherwise it's a regular procedure
-	p, ok := first.(Applyer)
-	if !ok {
-		return Err("Bad Procedure: ", List(first))
-	}
-	return p.Apply(s, rest, environment)
 }
 
 func (s *scheme) EvalGlobal(x interface{}) interface{} {

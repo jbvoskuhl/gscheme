@@ -102,3 +102,59 @@ func TestBasicMath(t *testing.T) {
 		t.Errorf("Expected (* (+ 2 1) 3) => 9 but instead got: %v", result)
 	}
 }
+
+// evalScheme is a helper that parses and evaluates a Scheme expression string.
+func evalScheme(s Scheme, code string) interface{} {
+	input := NewInputPortFromString(code)
+	var result interface{}
+	for {
+		x := input.Read()
+		if IsEOF(x) {
+			return result
+		}
+		result = s.EvalGlobal(x)
+	}
+}
+
+func TestTailRecursionIf(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n) (if (= n 0) 'done (loop (- n 1))))`)
+	result := evalScheme(s, `(loop 1000000)`)
+	if result != Symbol("done") {
+		t.Errorf("Expected 'done from deep tail recursion via if, got: %v", result)
+	}
+}
+
+func TestTailRecursionBegin(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n) (begin (if (= n 0) 'done (loop (- n 1)))))`)
+	result := evalScheme(s, `(loop 1000000)`)
+	if result != Symbol("done") {
+		t.Errorf("Expected 'done from deep tail recursion via begin, got: %v", result)
+	}
+}
+
+func TestTailRecursionCond(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n) (cond ((= n 0) 'done) (else (loop (- n 1)))))`)
+	result := evalScheme(s, `(loop 1000000)`)
+	if result != Symbol("done") {
+		t.Errorf("Expected 'done from deep tail recursion via cond, got: %v", result)
+	}
+}
+
+func TestMutualTailRecursion(t *testing.T) {
+	s := New()
+	evalScheme(s, `
+		(define (my-even? n) (if (= n 0) #t (my-odd? (- n 1))))
+		(define (my-odd? n) (if (= n 0) #f (my-even? (- n 1))))
+	`)
+	result := evalScheme(s, `(my-even? 100000)`)
+	if result != true {
+		t.Errorf("Expected #t from mutual tail recursion (even? 100000), got: %v", result)
+	}
+	result = evalScheme(s, `(my-odd? 100001)`)
+	if result != true {
+		t.Errorf("Expected #t from mutual tail recursion (odd? 100001), got: %v", result)
+	}
+}

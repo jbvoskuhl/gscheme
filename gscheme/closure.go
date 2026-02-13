@@ -4,6 +4,9 @@ package gscheme
 // To apply the procedure, bind the parameters to the passed in variables, and evaluate the body.
 type Closure interface {
 	Procedure
+	Body() interface{}
+	Params() interface{}
+	Env() Environment
 }
 
 type closure struct {
@@ -28,6 +31,15 @@ func NewClosure(params interface{}, body interface{}, env Environment) Closure {
 		env:    env,
 	}
 }
+
+// Body returns the closure's body expression.
+func (c *closure) Body() interface{} { return c.body }
+
+// Params returns the closure's parameter list.
+func (c *closure) Params() interface{} { return c.params }
+
+// Env returns the closure's captured environment.
+func (c *closure) Env() Environment { return c.env }
 
 // Apply evaluates the closure body in a new environment with parameters bound to arguments.
 func (c *closure) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {
