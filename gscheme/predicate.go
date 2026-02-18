@@ -51,12 +51,25 @@ func primitiveEqv(args Pair) interface{} {
 	if x == y {
 		return true
 	}
-	// Compare int64 by value
+	// Compare int64 by value (cross-type with *big.Int)
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
 			return xInt == yInt
 		}
-		return false // int64 vs float64 → different exactness → #f
+		if yBig, ok := y.(*big.Int); ok {
+			return yBig.IsInt64() && yBig.Int64() == xInt
+		}
+		return false
+	}
+	// Compare *big.Int by value (cross-type with int64)
+	if xBig, ok := x.(*big.Int); ok {
+		if yBig, ok := y.(*big.Int); ok {
+			return xBig.Cmp(yBig) == 0
+		}
+		if yInt, ok := y.(int64); ok {
+			return xBig.IsInt64() && xBig.Int64() == yInt
+		}
+		return false
 	}
 	// Compare *big.Rat by value
 	if xRat, ok := x.(*big.Rat); ok {
@@ -70,7 +83,7 @@ func primitiveEqv(args Pair) interface{} {
 		if yNum, ok := y.(float64); ok {
 			return xNum == yNum
 		}
-		return false // float64 vs int64 → different exactness → #f
+		return false
 	}
 	// Compare characters by value
 	if xChar, ok := x.(rune); ok {
@@ -141,10 +154,23 @@ func equal(x, y interface{}) bool {
 		}
 		return false
 	}
-	// Compare int64 numbers by value
+	// Compare int64 numbers by value (cross-type with *big.Int)
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
 			return xInt == yInt
+		}
+		if yBig, ok := y.(*big.Int); ok {
+			return yBig.IsInt64() && yBig.Int64() == xInt
+		}
+		return false
+	}
+	// Compare *big.Int numbers by value (cross-type with int64)
+	if xBig, ok := x.(*big.Int); ok {
+		if yBig, ok := y.(*big.Int); ok {
+			return xBig.Cmp(yBig) == 0
+		}
+		if yInt, ok := y.(int64); ok {
+			return xBig.IsInt64() && xBig.Int64() == yInt
 		}
 		return false
 	}
@@ -184,7 +210,7 @@ func equal(x, y interface{}) bool {
 func primitiveNumberP(args Pair) interface{} {
 	x := First(args)
 	switch x.(type) {
-	case int64, *big.Rat, float64, complex128:
+	case int64, *big.Int, *big.Rat, float64, complex128:
 		return true
 	default:
 		return false
@@ -198,10 +224,16 @@ func primitiveIntegerP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return true
+	case *big.Int:
+		_ = v
+		return true
 	case *big.Rat:
 		return v.IsInt()
 	case float64:
 		return v == math.Trunc(v) && !math.IsInf(v, 0) && !math.IsNaN(v)
+	case complex128:
+		r, i := real(v), imag(v)
+		return i == 0 && r == math.Trunc(r) && !math.IsInf(r, 0) && !math.IsNaN(r)
 	default:
 		return false
 	}
@@ -225,6 +257,8 @@ func primitiveZeroP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v == 0
+	case *big.Int:
+		return v.Sign() == 0
 	case *big.Rat:
 		return v.Sign() == 0
 	case float64:
@@ -240,6 +274,8 @@ func primitivePositiveP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v > 0
+	case *big.Int:
+		return v.Sign() > 0
 	case *big.Rat:
 		return v.Sign() > 0
 	case float64:
@@ -255,6 +291,8 @@ func primitiveNegativeP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v < 0
+	case *big.Int:
+		return v.Sign() < 0
 	case *big.Rat:
 		return v.Sign() < 0
 	case float64:
@@ -270,11 +308,13 @@ func primitiveOddP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v%2 != 0
+	case *big.Int:
+		return v.Bit(0) == 1
 	case *big.Rat:
 		if !v.IsInt() {
 			return Err("odd?: expected integer", args)
 		}
-		return v.Num().Int64()%2 != 0
+		return v.Num().Bit(0) == 1
 	case float64:
 		return int64(math.Abs(v))%2 != 0
 	default:
@@ -288,11 +328,13 @@ func primitiveEvenP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v%2 == 0
+	case *big.Int:
+		return v.Bit(0) == 0
 	case *big.Rat:
 		if !v.IsInt() {
 			return Err("even?: expected integer", args)
 		}
-		return v.Num().Int64()%2 == 0
+		return v.Num().Bit(0) == 0
 	case float64:
 		return int64(math.Abs(v))%2 == 0
 	default:
@@ -335,6 +377,9 @@ func primitiveRationalP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return true
+	case *big.Int:
+		_ = v
+		return true
 	case *big.Rat:
 		_ = v
 		return true
@@ -370,6 +415,9 @@ func primitiveExactIntegerP(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return true
 	}
+	if _, ok := x.(*big.Int); ok {
+		return true
+	}
 	if r, ok := x.(*big.Rat); ok {
 		return r.IsInt()
 	}
@@ -381,6 +429,9 @@ func primitiveFiniteP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return true
+	case *big.Int:
+		_ = v
 		return true
 	case *big.Rat:
 		_ = v
@@ -399,7 +450,7 @@ func primitiveFiniteP(args Pair) interface{} {
 func primitiveInfiniteP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
-	case int64, *big.Rat:
+	case int64, *big.Int, *big.Rat:
 		_ = v
 		return false
 	case float64:
@@ -415,7 +466,7 @@ func primitiveInfiniteP(args Pair) interface{} {
 func primitiveNanP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
-	case int64, *big.Rat:
+	case int64, *big.Int, *big.Rat:
 		_ = v
 		return false
 	case float64:

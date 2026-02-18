@@ -31,6 +31,8 @@ func Stringify(object interface{}) string {
 		return string(value)
 	case int64:
 		return strconv.FormatInt(value, 10)
+	case *big.Int:
+		return value.String()
 	case *big.Rat:
 		if value.IsInt() {
 			return value.Num().String()

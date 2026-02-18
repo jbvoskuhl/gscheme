@@ -64,9 +64,17 @@ func uint64Constraint(object interface{}) uint64 {
 		return uint64(value)
 	case int64:
 		return uint64(value)
+	case *big.Int:
+		if value.IsUint64() {
+			return value.Uint64()
+		}
+		Err(fmt.Sprintf("Expected integer in uint64 range, but instead got: %s.", value.String()), List(value))
 	case *big.Rat:
 		if value.IsInt() {
-			return uint64(value.Num().Int64())
+			n := value.Num()
+			if n.IsUint64() {
+				return n.Uint64()
+			}
 		}
 		Err(fmt.Sprintf("Expected integer type, but instead got rational: %s.", value.RatString()), List(value))
 	default:
@@ -101,6 +109,15 @@ func byteConstraint(object interface{}) uint8 {
 			Err("Expected exact integer in range 0-255, but instead got: ", List(object))
 		}
 		return uint8(v)
+	case *big.Int:
+		if v.IsInt64() {
+			n := v.Int64()
+			if n >= 0 && n <= 255 {
+				return uint8(n)
+			}
+		}
+		Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+		return 0
 	case *big.Rat:
 		if v.IsInt() {
 			n := v.Num().Int64()
@@ -144,9 +161,11 @@ func integerConstraint(object interface{}) interface{} {
 		return value
 	case int64:
 		return value
+	case *big.Int:
+		return SimplifyBigInt(value)
 	case *big.Rat:
 		if value.IsInt() {
-			return value.Num().Int64()
+			return SimplifyBigInt(value.Num())
 		}
 		return Err(fmt.Sprintf("Expected integer type, but instead got rational: %s.", value.RatString()), List(value))
 	default:

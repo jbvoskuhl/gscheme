@@ -71,8 +71,12 @@ func binaryTimes(x, y interface{}) interface{} {
 	}
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
-			return xInt * yInt
+			return mulInt64(xInt, yInt)
 		}
+	}
+	if isExactInt(x) && isExactInt(y) {
+		result := new(big.Int).Mul(ToBigInt(x), ToBigInt(y))
+		return SimplifyBigInt(result)
 	}
 	if isExact(x) && isExact(y) {
 		return SimplifyRat(new(big.Rat).Mul(ToRat(x), ToRat(y)))
@@ -86,8 +90,12 @@ func binaryPlus(x, y interface{}) interface{} {
 	}
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
-			return xInt + yInt
+			return addInt64(xInt, yInt)
 		}
+	}
+	if isExactInt(x) && isExactInt(y) {
+		result := new(big.Int).Add(ToBigInt(x), ToBigInt(y))
+		return SimplifyBigInt(result)
 	}
 	if isExact(x) && isExact(y) {
 		return SimplifyRat(new(big.Rat).Add(ToRat(x), ToRat(y)))
@@ -101,8 +109,12 @@ func binaryMinus(x, y interface{}) interface{} {
 	}
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
-			return xInt - yInt
+			return subInt64(xInt, yInt)
 		}
+	}
+	if isExactInt(x) && isExactInt(y) {
+		result := new(big.Int).Sub(ToBigInt(x), ToBigInt(y))
+		return SimplifyBigInt(result)
 	}
 	if isExact(x) && isExact(y) {
 		return SimplifyRat(new(big.Rat).Sub(ToRat(x), ToRat(y)))
@@ -113,6 +125,14 @@ func binaryMinus(x, y interface{}) interface{} {
 func binaryDivide(x, y interface{}) interface{} {
 	if isComplex(x) || isComplex(y) {
 		return SimplifyComplex(ToComplex(x) / ToComplex(y))
+	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		mod := new(big.Int).Mod(bx, by)
+		if mod.Sign() == 0 {
+			return SimplifyBigInt(new(big.Int).Div(bx, by))
+		}
+		return SimplifyRat(new(big.Rat).SetFrac(new(big.Int).Set(bx), new(big.Int).Set(by)))
 	}
 	if isExact(x) && isExact(y) {
 		return SimplifyRat(new(big.Rat).Quo(ToRat(x), ToRat(y)))
@@ -177,9 +197,12 @@ func primitiveAbs(args Pair) interface{} {
 	x := First(args)
 	if v, ok := x.(int64); ok {
 		if v < 0 {
-			return -v
+			return negInt64(v)
 		}
 		return v
+	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(new(big.Int).Abs(v))
 	}
 	if r, ok := x.(*big.Rat); ok {
 		return SimplifyRat(new(big.Rat).Abs(r))
@@ -189,46 +212,52 @@ func primitiveAbs(args Pair) interface{} {
 
 func primitiveMax(args Pair) interface{} {
 	result := First(args)
-	resultF := Num(result)
 	inexact := !isExact(result)
 	args = RestPair(args)
 	for args != nil {
 		x := First(args)
-		xF := Num(x)
 		if !isExact(x) {
 			inexact = true
 		}
-		if xF > resultF {
-			result = x
-			resultF = xF
+		if isExact(result) && isExact(x) {
+			if ToRat(x).Cmp(ToRat(result)) > 0 {
+				result = x
+			}
+		} else {
+			if Num(x) > Num(result) {
+				result = x
+			}
 		}
 		args = RestPair(args)
 	}
 	if inexact {
-		return resultF
+		return Num(result)
 	}
 	return result
 }
 
 func primitiveMin(args Pair) interface{} {
 	result := First(args)
-	resultF := Num(result)
 	inexact := !isExact(result)
 	args = RestPair(args)
 	for args != nil {
 		x := First(args)
-		xF := Num(x)
 		if !isExact(x) {
 			inexact = true
 		}
-		if xF < resultF {
-			result = x
-			resultF = xF
+		if isExact(result) && isExact(x) {
+			if ToRat(x).Cmp(ToRat(result)) < 0 {
+				result = x
+			}
+		} else {
+			if Num(x) < Num(result) {
+				result = x
+			}
 		}
 		args = RestPair(args)
 	}
 	if inexact {
-		return resultF
+		return Num(result)
 	}
 	return result
 }
@@ -240,13 +269,17 @@ func primitiveQuotient(args Pair) interface{} {
 			return xInt / yInt
 		}
 	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		result := new(big.Int).Quo(bx, by)
+		return SimplifyBigInt(result)
+	}
 	if isExact(x) && isExact(y) {
 		xr, yr := ToRat(x), ToRat(y)
 		q := new(big.Rat).Quo(xr, yr)
-		// Truncate toward zero
 		num, den := q.Num(), q.Denom()
 		result := new(big.Int).Quo(num, den)
-		return result.Int64()
+		return SimplifyBigInt(result)
 	}
 	return int64(math.Trunc(Num(x) / Num(y)))
 }
@@ -258,11 +291,15 @@ func primitiveRemainder(args Pair) interface{} {
 			return xInt % yInt
 		}
 	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		result := new(big.Int).Rem(bx, by)
+		return SimplifyBigInt(result)
+	}
 	if isExact(x) && isExact(y) {
 		xr, yr := ToRat(x), ToRat(y)
 		q := new(big.Rat).Quo(xr, yr)
 		qTrunc := new(big.Int).Quo(q.Num(), q.Denom())
-		// remainder = x - truncate(x/y) * y
 		rem := new(big.Rat).Sub(xr, new(big.Rat).Mul(new(big.Rat).SetInt(qTrunc), yr))
 		return SimplifyRat(rem)
 	}
@@ -281,14 +318,16 @@ func primitiveModulo(args Pair) interface{} {
 			return m
 		}
 	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		result := new(big.Int).Mod(bx, by)
+		return SimplifyBigInt(result)
+	}
 	if isExact(x) && isExact(y) {
 		xr, yr := ToRat(x), ToRat(y)
 		q := new(big.Rat).Quo(xr, yr)
-		// Floor division
 		qNum, qDen := q.Num(), q.Denom()
-		qFloor := new(big.Int).Div(qNum, qDen) // Div truncates toward -inf for big.Int
-		// For negative quotients with non-zero remainder, Div already floors
-		// modulo = x - floor(x/y) * y
+		qFloor := new(big.Int).Div(qNum, qDen)
 		mod := new(big.Rat).Sub(xr, new(big.Rat).Mul(new(big.Rat).SetInt(qFloor), yr))
 		return SimplifyRat(mod)
 	}
@@ -319,52 +358,52 @@ func gcd(a, b float64) float64 {
 }
 
 func primitiveGcd(args Pair) interface{} {
-	allInt := true
-	resultInt := int64(0)
+	allExactInt := true
+	resultBig := big.NewInt(0)
 	resultFloat := float64(0)
 	for args != nil {
 		x := First(args)
 		if r, ok := x.(*big.Rat); ok && r.IsInt() {
-			x = r.Num().Int64()
+			x = SimplifyBigInt(r.Num())
 		}
-		if v, ok := x.(int64); ok && allInt {
-			resultInt = gcd64(resultInt, v)
+		if isExactInt(x) && allExactInt {
+			resultBig.GCD(nil, nil, resultBig, new(big.Int).Abs(ToBigInt(x)))
 		} else {
-			if allInt {
-				allInt = false
-				resultFloat = float64(resultInt)
+			if allExactInt {
+				allExactInt = false
+				resultFloat, _ = new(big.Float).SetInt(resultBig).Float64()
 			}
 			resultFloat = gcd(resultFloat, Num(x))
 		}
 		args = RestPair(args)
 	}
-	if allInt {
-		return resultInt
+	if allExactInt {
+		return SimplifyBigInt(resultBig)
 	}
 	return resultFloat
 }
 
 func primitiveLcm(args Pair) interface{} {
-	allInt := true
-	resultInt := int64(1)
+	allExactInt := true
+	resultBig := big.NewInt(1)
 	resultFloat := float64(1)
 	for args != nil {
 		x := First(args)
 		if r, ok := x.(*big.Rat); ok && r.IsInt() {
-			x = r.Num().Int64()
+			x = SimplifyBigInt(r.Num())
 		}
-		if v, ok := x.(int64); ok && allInt {
-			if v < 0 {
-				v = -v
-			}
-			if v == 0 {
+		if isExactInt(x) && allExactInt {
+			v := new(big.Int).Abs(ToBigInt(x))
+			if v.Sign() == 0 {
 				return int64(0)
 			}
-			resultInt = resultInt / gcd64(resultInt, v) * v
+			g := new(big.Int).GCD(nil, nil, resultBig, v)
+			resultBig.Div(resultBig, g)
+			resultBig.Mul(resultBig, v)
 		} else {
-			if allInt {
-				allInt = false
-				resultFloat = float64(resultInt)
+			if allExactInt {
+				allExactInt = false
+				resultFloat, _ = new(big.Float).SetInt(resultBig).Float64()
 			}
 			xf := math.Abs(Num(x))
 			if xf == 0 {
@@ -374,27 +413,25 @@ func primitiveLcm(args Pair) interface{} {
 		}
 		args = RestPair(args)
 	}
-	if allInt {
-		return resultInt
+	if allExactInt {
+		return SimplifyBigInt(resultBig)
 	}
 	return resultFloat
 }
 
 func primitiveExpt(args Pair) interface{} {
 	base, exp := First(args), Second(args)
-	if bInt, ok := base.(int64); ok {
+	// Exact integer base with non-negative exact integer exponent
+	if isExactInt(base) {
 		if eInt, ok := exp.(int64); ok && eInt >= 0 {
-			result := int64(1)
-			b := bInt
-			e := eInt
-			for e > 0 {
-				if e%2 == 1 {
-					result *= b
-				}
-				b *= b
-				e /= 2
-			}
-			return result
+			b := ToBigInt(base)
+			result := new(big.Int).Exp(b, big.NewInt(eInt), nil)
+			return SimplifyBigInt(result)
+		}
+		if eBig, ok := exp.(*big.Int); ok && eBig.Sign() >= 0 {
+			b := ToBigInt(base)
+			result := new(big.Int).Exp(b, eBig, nil)
+			return SimplifyBigInt(result)
 		}
 	}
 	if bRat, ok := base.(*big.Rat); ok {
@@ -418,7 +455,10 @@ func primitiveExpt(args Pair) interface{} {
 func primitiveSquare(args Pair) interface{} {
 	x := First(args)
 	if v, ok := x.(int64); ok {
-		return v * v
+		return mulInt64(v, v)
+	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(new(big.Int).Mul(v, v))
 	}
 	if r, ok := x.(*big.Rat); ok {
 		return SimplifyRat(new(big.Rat).Mul(r, r))
@@ -432,10 +472,12 @@ func primitiveFloor(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return x
 	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(v)
+	}
 	if r, ok := x.(*big.Rat); ok {
-		// Floor: largest integer <= r
-		q := new(big.Int).Div(r.Num(), r.Denom()) // Div floors for big.Int
-		return q.Int64()
+		q := new(big.Int).Div(r.Num(), r.Denom())
+		return SimplifyBigInt(q)
 	}
 	return int64(math.Floor(Num(x)))
 }
@@ -445,14 +487,16 @@ func primitiveCeiling(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return x
 	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(v)
+	}
 	if r, ok := x.(*big.Rat); ok {
 		if r.IsInt() {
-			return r.Num().Int64()
+			return SimplifyBigInt(r.Num())
 		}
-		// Ceiling: floor + 1 for non-integers
 		q := new(big.Int).Div(r.Num(), r.Denom())
 		q.Add(q, big.NewInt(1))
-		return q.Int64()
+		return SimplifyBigInt(q)
 	}
 	return int64(math.Ceil(Num(x)))
 }
@@ -461,6 +505,9 @@ func primitiveRound(args Pair) interface{} {
 	x := First(args)
 	if _, ok := x.(int64); ok {
 		return x
+	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(v)
 	}
 	if r, ok := x.(*big.Rat); ok {
 		f, _ := r.Float64()
@@ -474,11 +521,13 @@ func primitiveTruncate(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return x
 	}
+	if v, ok := x.(*big.Int); ok {
+		return SimplifyBigInt(v)
+	}
 	if r, ok := x.(*big.Rat); ok {
-		// Truncate toward zero
 		num, den := r.Num(), r.Denom()
 		q := new(big.Int).Quo(num, den)
-		return q.Int64()
+		return SimplifyBigInt(q)
 	}
 	return int64(math.Trunc(Num(x)))
 }
@@ -487,6 +536,10 @@ func primitiveExactToInexact(args Pair) interface{} {
 	x := First(args)
 	if v, ok := x.(int64); ok {
 		return float64(v)
+	}
+	if v, ok := x.(*big.Int); ok {
+		f, _ := new(big.Float).SetInt(v).Float64()
+		return f
 	}
 	if r, ok := x.(*big.Rat); ok {
 		f, _ := r.Float64()
@@ -498,6 +551,9 @@ func primitiveExactToInexact(args Pair) interface{} {
 func primitiveInexactToExact(args Pair) interface{} {
 	x := First(args)
 	if _, ok := x.(int64); ok {
+		return x
+	}
+	if _, ok := x.(*big.Int); ok {
 		return x
 	}
 	if _, ok := x.(*big.Rat); ok {
@@ -523,11 +579,16 @@ func primitiveFloorQuotient(args Pair) interface{} {
 			return q
 		}
 	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		result := new(big.Int).Div(bx, by)
+		return SimplifyBigInt(result)
+	}
 	if isExact(x) && isExact(y) {
 		xr, yr := ToRat(x), ToRat(y)
 		q := new(big.Rat).Quo(xr, yr)
 		result := new(big.Int).Div(q.Num(), q.Denom())
-		return result.Int64()
+		return SimplifyBigInt(result)
 	}
 	return int64(math.Floor(Num(x) / Num(y)))
 }
@@ -542,6 +603,11 @@ func primitiveFloorRemainder(args Pair) interface{} {
 			}
 			return m
 		}
+	}
+	if isExactInt(x) && isExactInt(y) {
+		bx, by := ToBigInt(x), ToBigInt(y)
+		result := new(big.Int).Mod(bx, by)
+		return SimplifyBigInt(result)
 	}
 	if isExact(x) && isExact(y) {
 		xr, yr := ToRat(x), ToRat(y)
@@ -559,8 +625,11 @@ func primitiveNumerator(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return x
 	}
+	if _, ok := x.(*big.Int); ok {
+		return x
+	}
 	if r, ok := x.(*big.Rat); ok {
-		return r.Num().Int64()
+		return SimplifyBigInt(r.Num())
 	}
 	f := Num(x)
 	if f == math.Trunc(f) {
@@ -586,8 +655,11 @@ func primitiveDenominator(args Pair) interface{} {
 	if _, ok := x.(int64); ok {
 		return int64(1)
 	}
+	if _, ok := x.(*big.Int); ok {
+		return int64(1)
+	}
 	if r, ok := x.(*big.Rat); ok {
-		return r.Denom().Int64()
+		return SimplifyBigInt(r.Denom())
 	}
 	f := Num(x)
 	if f == math.Trunc(f) {

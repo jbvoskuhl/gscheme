@@ -417,6 +417,12 @@ func parseNumber(s string) interface{} {
 			if errN == nil && errD == nil && den > 0 {
 				return SimplifyRat(new(big.Rat).SetFrac64(num, den))
 			}
+			// Try big.Int for large numerator/denominator
+			bigNum, okN := new(big.Int).SetString(parts[0], 10)
+			bigDen, okD := new(big.Int).SetString(parts[1], 10)
+			if okN && okD && bigDen.Sign() > 0 {
+				return SimplifyRat(new(big.Rat).SetFrac(bigNum, bigDen))
+			}
 		}
 		return nil
 	}
@@ -489,6 +495,10 @@ func parseNumber(s string) interface{} {
 	if !strings.ContainsAny(s, ".eE") {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 			return n
+		}
+		// Try big.Int for integers too large for int64
+		if bi, ok := new(big.Int).SetString(s, 10); ok {
+			return bi
 		}
 	}
 

@@ -182,12 +182,15 @@ func primitiveNumberToString(args Pair) interface{} {
 	if v, ok := num.(int64); ok {
 		return strconv.FormatInt(v, radix)
 	}
+	if v, ok := num.(*big.Int); ok {
+		return v.Text(radix)
+	}
 	if r, ok := num.(*big.Rat); ok {
 		if radix == 10 {
 			return r.RatString()
 		}
 		if r.IsInt() {
-			return strconv.FormatInt(r.Num().Int64(), radix)
+			return r.Num().Text(radix)
 		}
 		return r.RatString()
 	}
@@ -237,6 +240,9 @@ func primitiveStringToNumber(args Pair) interface{} {
 			if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 				return n
 			}
+			if bi, ok := new(big.Int).SetString(s, 10); ok {
+				return bi
+			}
 		}
 		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
@@ -246,6 +252,9 @@ func primitiveStringToNumber(args Pair) interface{} {
 	}
 	n, err := strconv.ParseInt(s, radix, 64)
 	if err != nil {
+		if bi, ok := new(big.Int).SetString(s, radix); ok {
+			return bi
+		}
 		return false
 	}
 	return n

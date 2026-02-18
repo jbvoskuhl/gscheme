@@ -34,6 +34,9 @@ func ToFloat64(x interface{}) float64 {
 		return float64(value)
 	case uint8:
 		return float64(value)
+	case *big.Int:
+		f, _ := new(big.Float).SetInt(value).Float64()
+		return f
 	case *big.Rat:
 		f, _ := value.Float64()
 		return f
@@ -59,15 +62,21 @@ func IsFloat64(x interface{}) bool {
 	return ok
 }
 
-// IsWholeNumber returns true if x is an int64 or a whole-number float64.
+// IsWholeNumber returns true if x is an int64, *big.Int, or a whole-number float64.
 func IsWholeNumber(x interface{}) bool {
 	switch v := x.(type) {
 	case int64:
+		return true
+	case *big.Int:
+		_ = v
 		return true
 	case *big.Rat:
 		return v.IsInt()
 	case float64:
 		return v == math.Trunc(v) && !math.IsInf(v, 0) && !math.IsNaN(v)
+	case complex128:
+		r, i := real(v), imag(v)
+		return i == 0 && r == math.Trunc(r) && !math.IsInf(r, 0) && !math.IsNaN(r)
 	default:
 		return false
 	}

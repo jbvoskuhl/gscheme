@@ -39,7 +39,7 @@ func installComplexPrimitives(environment Environment) {
 func primitiveComplexP(args Pair) interface{} {
 	x := First(args)
 	switch x.(type) {
-	case int64, *big.Rat, float64, complex128:
+	case int64, *big.Int, *big.Rat, float64, complex128:
 		return true
 	default:
 		return false
@@ -52,6 +52,9 @@ func primitiveRealP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return true
+	case *big.Int:
+		_ = v
 		return true
 	case *big.Rat:
 		_ = v
@@ -95,6 +98,8 @@ func primitiveRealPart(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v
+	case *big.Int:
+		return v
 	case *big.Rat:
 		return v
 	case float64:
@@ -111,6 +116,9 @@ func primitiveImagPart(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return int64(0)
+	case *big.Int:
+		_ = v
 		return int64(0)
 	case *big.Rat:
 		_ = v
@@ -131,9 +139,11 @@ func primitiveMagnitude(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		if v < 0 {
-			return -v
+			return negInt64(v)
 		}
 		return v
+	case *big.Int:
+		return SimplifyBigInt(new(big.Int).Abs(v))
 	case *big.Rat:
 		return SimplifyRat(new(big.Rat).Abs(v))
 	case float64:
@@ -151,6 +161,11 @@ func primitiveAngle(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		if v >= 0 {
+			return float64(0)
+		}
+		return math.Pi
+	case *big.Int:
+		if v.Sign() >= 0 {
 			return float64(0)
 		}
 		return math.Pi
@@ -176,6 +191,9 @@ func numToFloat64(x interface{}) (float64, bool) {
 	switch v := x.(type) {
 	case int64:
 		return float64(v), true
+	case *big.Int:
+		f, _ := new(big.Float).SetInt(v).Float64()
+		return f, true
 	case *big.Rat:
 		f, _ := v.Float64()
 		return f, true
@@ -359,6 +377,9 @@ func ToComplex(x interface{}) complex128 {
 	switch v := x.(type) {
 	case int64:
 		return complex(float64(v), 0)
+	case *big.Int:
+		f, _ := new(big.Float).SetInt(v).Float64()
+		return complex(f, 0)
 	case *big.Rat:
 		f, _ := v.Float64()
 		return complex(f, 0)

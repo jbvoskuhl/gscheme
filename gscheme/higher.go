@@ -155,6 +155,18 @@ func eqv(x, y interface{}) bool {
 		if yInt, ok := y.(int64); ok {
 			return xInt == yInt
 		}
+		if yBig, ok := y.(*big.Int); ok {
+			return yBig.IsInt64() && yBig.Int64() == xInt
+		}
+		return false
+	}
+	if xBig, ok := x.(*big.Int); ok {
+		if yBig, ok := y.(*big.Int); ok {
+			return xBig.Cmp(yBig) == 0
+		}
+		if yInt, ok := y.(int64); ok {
+			return xBig.IsInt64() && xBig.Int64() == yInt
+		}
 		return false
 	}
 	if xRat, ok := x.(*big.Rat); ok {

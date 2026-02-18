@@ -7,22 +7,24 @@ func NewRat(a, b int64) *big.Rat {
 	return new(big.Rat).SetFrac64(a, b)
 }
 
-// ToRat converts an int64 or *big.Rat to *big.Rat. Panics on other types.
+// ToRat converts an int64, *big.Int, or *big.Rat to *big.Rat. Panics on other types.
 func ToRat(x interface{}) *big.Rat {
 	switch v := x.(type) {
 	case *big.Rat:
 		return v
 	case int64:
 		return new(big.Rat).SetInt64(v)
+	case *big.Int:
+		return new(big.Rat).SetInt(v)
 	default:
 		return ToRat(Err("Expected exact number, instead got:", List(x)))
 	}
 }
 
-// SimplifyRat returns int64 if the denominator is 1, otherwise returns the *big.Rat.
+// SimplifyRat returns int64 or *big.Int if the denominator is 1, otherwise returns the *big.Rat.
 func SimplifyRat(r *big.Rat) interface{} {
 	if r.IsInt() {
-		return r.Num().Int64()
+		return SimplifyBigInt(r.Num())
 	}
 	return r
 }
@@ -33,10 +35,10 @@ func IsRat(x interface{}) bool {
 	return ok
 }
 
-// isExact returns true if x is an exact number (int64 or *big.Rat).
+// isExact returns true if x is an exact number (int64, *big.Int, or *big.Rat).
 func isExact(x interface{}) bool {
 	switch x.(type) {
-	case int64, *big.Rat:
+	case int64, *big.Int, *big.Rat:
 		return true
 	default:
 		return false

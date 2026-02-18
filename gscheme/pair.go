@@ -318,6 +318,11 @@ func indexConstraint(object interface{}) int {
 	switch v := object.(type) {
 	case int64:
 		return int(v)
+	case *big.Int:
+		if v.IsInt64() {
+			return int(v.Int64())
+		}
+		return int(uint64Constraint(object))
 	case *big.Rat:
 		if v.IsInt() {
 			return int(v.Num().Int64())
