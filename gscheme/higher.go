@@ -1,5 +1,7 @@
 package gscheme
 
+import "math/big"
+
 // HigherOrderPrimitive is a primitive that needs access to the interpreter for evaluation.
 type HigherOrderPrimitive interface {
 	Procedure
@@ -152,6 +154,12 @@ func eqv(x, y interface{}) bool {
 	if xInt, ok := x.(int64); ok {
 		if yInt, ok := y.(int64); ok {
 			return xInt == yInt
+		}
+		return false
+	}
+	if xRat, ok := x.(*big.Rat); ok {
+		if yRat, ok := y.(*big.Rat); ok {
+			return xRat.Cmp(yRat) == 0
 		}
 		return false
 	}

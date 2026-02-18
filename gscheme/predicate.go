@@ -1,6 +1,9 @@
 package gscheme
 
-import "math"
+import (
+	"math"
+	"math/big"
+)
 
 // installPredicatePrimitives adds predicate functions to a given environment.
 func installPredicatePrimitives(environment Environment) {
@@ -54,6 +57,13 @@ func primitiveEqv(args Pair) interface{} {
 			return xInt == yInt
 		}
 		return false // int64 vs float64 → different exactness → #f
+	}
+	// Compare *big.Rat by value
+	if xRat, ok := x.(*big.Rat); ok {
+		if yRat, ok := y.(*big.Rat); ok {
+			return xRat.Cmp(yRat) == 0
+		}
+		return false
 	}
 	// Compare float64 by value
 	if xNum, ok := x.(float64); ok {
@@ -138,6 +148,13 @@ func equal(x, y interface{}) bool {
 		}
 		return false
 	}
+	// Compare *big.Rat numbers by value
+	if xRat, ok := x.(*big.Rat); ok {
+		if yRat, ok := y.(*big.Rat); ok {
+			return xRat.Cmp(yRat) == 0
+		}
+		return false
+	}
 	// Compare float64 numbers by value
 	if xNum, ok := x.(float64); ok {
 		if yNum, ok := y.(float64); ok {
@@ -167,7 +184,7 @@ func equal(x, y interface{}) bool {
 func primitiveNumberP(args Pair) interface{} {
 	x := First(args)
 	switch x.(type) {
-	case int64, float64, complex128:
+	case int64, *big.Rat, float64, complex128:
 		return true
 	default:
 		return false
@@ -181,6 +198,8 @@ func primitiveIntegerP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return true
+	case *big.Rat:
+		return v.IsInt()
 	case float64:
 		return v == math.Trunc(v) && !math.IsInf(v, 0) && !math.IsNaN(v)
 	default:
@@ -206,6 +225,8 @@ func primitiveZeroP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v == 0
+	case *big.Rat:
+		return v.Sign() == 0
 	case float64:
 		return v == 0
 	default:
@@ -219,6 +240,8 @@ func primitivePositiveP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v > 0
+	case *big.Rat:
+		return v.Sign() > 0
 	case float64:
 		return v > 0
 	default:
@@ -232,6 +255,8 @@ func primitiveNegativeP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v < 0
+	case *big.Rat:
+		return v.Sign() < 0
 	case float64:
 		return v < 0
 	default:
@@ -245,6 +270,11 @@ func primitiveOddP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v%2 != 0
+	case *big.Rat:
+		if !v.IsInt() {
+			return Err("odd?: expected integer", args)
+		}
+		return v.Num().Int64()%2 != 0
 	case float64:
 		return int64(math.Abs(v))%2 != 0
 	default:
@@ -258,6 +288,11 @@ func primitiveEvenP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v%2 == 0
+	case *big.Rat:
+		if !v.IsInt() {
+			return Err("even?: expected integer", args)
+		}
+		return v.Num().Int64()%2 == 0
 	case float64:
 		return int64(math.Abs(v))%2 == 0
 	default:
@@ -300,6 +335,9 @@ func primitiveRationalP(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return true
+	case *big.Rat:
+		_ = v
+		return true
 	case float64:
 		return !math.IsInf(v, 0) && !math.IsNaN(v)
 	case complex128:
@@ -312,8 +350,7 @@ func primitiveRationalP(args Pair) interface{} {
 // primitiveExactP implements exact? which tests if the argument is an exact number.
 // int64 values are exact; float64 and complex128 are inexact.
 func primitiveExactP(args Pair) interface{} {
-	_, ok := First(args).(int64)
-	return ok
+	return isExact(First(args))
 }
 
 // primitiveInexactP implements inexact? which tests if the argument is an inexact number.
@@ -329,8 +366,14 @@ func primitiveInexactP(args Pair) interface{} {
 
 // primitiveExactIntegerP implements exact-integer? which tests if the argument is an exact integer.
 func primitiveExactIntegerP(args Pair) interface{} {
-	_, ok := First(args).(int64)
-	return ok
+	x := First(args)
+	if _, ok := x.(int64); ok {
+		return true
+	}
+	if r, ok := x.(*big.Rat); ok {
+		return r.IsInt()
+	}
+	return false
 }
 
 // primitiveFiniteP implements finite? which tests if the argument is a finite number.
@@ -338,6 +381,9 @@ func primitiveFiniteP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return true
+	case *big.Rat:
+		_ = v
 		return true
 	case float64:
 		return !math.IsInf(v, 0) && !math.IsNaN(v)
@@ -352,23 +398,31 @@ func primitiveFiniteP(args Pair) interface{} {
 // primitiveInfiniteP implements infinite? which tests if the argument is infinite.
 func primitiveInfiniteP(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
-		return math.IsInf(f, 0)
+	switch v := x.(type) {
+	case int64, *big.Rat:
+		_ = v
+		return false
+	case float64:
+		return math.IsInf(v, 0)
+	case complex128:
+		return math.IsInf(real(v), 0) || math.IsInf(imag(v), 0)
+	default:
+		return false
 	}
-	if c, ok := x.(complex128); ok {
-		return math.IsInf(real(c), 0) || math.IsInf(imag(c), 0)
-	}
-	return false
 }
 
 // primitiveNanP implements nan? which tests if the argument is NaN (not a number).
 func primitiveNanP(args Pair) interface{} {
 	x := First(args)
-	if f, ok := x.(float64); ok {
-		return math.IsNaN(f)
+	switch v := x.(type) {
+	case int64, *big.Rat:
+		_ = v
+		return false
+	case float64:
+		return math.IsNaN(v)
+	case complex128:
+		return math.IsNaN(real(v)) || math.IsNaN(imag(v))
+	default:
+		return false
 	}
-	if c, ok := x.(complex128); ok {
-		return math.IsNaN(real(c)) || math.IsNaN(imag(c))
-	}
-	return false
 }

@@ -435,10 +435,15 @@ func TestFloorRemainder(t *testing.T) {
 
 func TestExactInexact(t *testing.T) {
 	scheme := New()
-	// exact converts float64 to int64 (truncates)
+	// exact converts float64(3.5) to *big.Rat(7/2)
 	result := scheme.EvalGlobal(List(Symbol("exact"), float64(3.5)))
+	if Stringify(result) != "7/2" {
+		t.Errorf("Expected (exact 3.5) to be 7/2 but was: %v (%T)", result, result)
+	}
+	// exact converts float64(3.0) to int64(3)
+	result = scheme.EvalGlobal(List(Symbol("exact"), float64(3.0)))
 	if result != int64(3) {
-		t.Errorf("Expected (exact 3.5) to be 3 but was: %v (%T)", result, result)
+		t.Errorf("Expected (exact 3.0) to be 3 but was: %v (%T)", result, result)
 	}
 	// inexact on float64 stays float64
 	result = scheme.EvalGlobal(List(Symbol("inexact"), float64(3)))

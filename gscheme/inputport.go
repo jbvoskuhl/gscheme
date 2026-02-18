@@ -3,6 +3,7 @@ package gscheme
 import (
 	"bufio"
 	"io"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode"
@@ -406,6 +407,19 @@ func listToVector(list interface{}) []interface{} {
 // +i, -i, +<num>i, -<num>i, <real>+<num>i, <real>-<num>i.
 func parseNumber(s string) interface{} {
 	s = strings.ToLower(s)
+
+	// Check for rational number: n/d (must not end with 'i' which would be complex)
+	if !strings.HasSuffix(s, "i") && strings.Contains(s, "/") {
+		parts := strings.SplitN(s, "/", 2)
+		if len(parts) == 2 && parts[1] != "" {
+			num, errN := strconv.ParseInt(parts[0], 10, 64)
+			den, errD := strconv.ParseInt(parts[1], 10, 64)
+			if errN == nil && errD == nil && den > 0 {
+				return SimplifyRat(new(big.Rat).SetFrac64(num, den))
+			}
+		}
+		return nil
+	}
 
 	// Check for pure imaginary: +i, -i (bare "i" is a symbol per R7RS)
 	if s == "+i" {

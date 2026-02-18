@@ -1,6 +1,9 @@
 package gscheme
 
-import "math"
+import (
+	"math"
+	"math/big"
+)
 
 // Truth converts Scheme objects to boolean.  Only #f is false, others are true.
 func Truth(x interface{}) bool {
@@ -31,6 +34,9 @@ func ToFloat64(x interface{}) float64 {
 		return float64(value)
 	case uint8:
 		return float64(value)
+	case *big.Rat:
+		f, _ := value.Float64()
+		return f
 	default:
 		return ToFloat64(Err("Expected a number, instead got:", List(x)))
 	}
@@ -58,6 +64,8 @@ func IsWholeNumber(x interface{}) bool {
 	switch v := x.(type) {
 	case int64:
 		return true
+	case *big.Rat:
+		return v.IsInt()
 	case float64:
 		return v == math.Trunc(v) && !math.IsInf(v, 0) && !math.IsNaN(v)
 	default:

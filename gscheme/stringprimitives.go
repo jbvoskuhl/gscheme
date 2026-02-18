@@ -2,6 +2,7 @@ package gscheme
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -180,6 +181,15 @@ func primitiveNumberToString(args Pair) interface{} {
 	}
 	if v, ok := num.(int64); ok {
 		return strconv.FormatInt(v, radix)
+	}
+	if r, ok := num.(*big.Rat); ok {
+		if radix == 10 {
+			return r.RatString()
+		}
+		if r.IsInt() {
+			return strconv.FormatInt(r.Num().Int64(), radix)
+		}
+		return r.RatString()
 	}
 	if radix == 10 {
 		return fmt.Sprint(num)

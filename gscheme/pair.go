@@ -2,6 +2,7 @@ package gscheme
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 )
 
@@ -317,6 +318,11 @@ func indexConstraint(object interface{}) int {
 	switch v := object.(type) {
 	case int64:
 		return int(v)
+	case *big.Rat:
+		if v.IsInt() {
+			return int(v.Num().Int64())
+		}
+		return int(uint64Constraint(object))
 	case float64:
 		return int(v)
 	default:

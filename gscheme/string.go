@@ -2,6 +2,7 @@ package gscheme
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -30,6 +31,11 @@ func Stringify(object interface{}) string {
 		return string(value)
 	case int64:
 		return strconv.FormatInt(value, 10)
+	case *big.Rat:
+		if value.IsInt() {
+			return value.Num().String()
+		}
+		return value.RatString()
 	case complex128:
 		return stringifyComplex(value)
 	case fmt.Stringer:

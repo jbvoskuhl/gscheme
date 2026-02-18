@@ -2,6 +2,7 @@ package gscheme
 
 import (
 	"math"
+	"math/big"
 	"math/cmplx"
 )
 
@@ -38,7 +39,7 @@ func installComplexPrimitives(environment Environment) {
 func primitiveComplexP(args Pair) interface{} {
 	x := First(args)
 	switch x.(type) {
-	case int64, float64, complex128:
+	case int64, *big.Rat, float64, complex128:
 		return true
 	default:
 		return false
@@ -51,6 +52,9 @@ func primitiveRealP(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return true
+	case *big.Rat:
+		_ = v
 		return true
 	case float64:
 		return true
@@ -91,6 +95,8 @@ func primitiveRealPart(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		return v
+	case *big.Rat:
+		return v
 	case float64:
 		return v
 	case complex128:
@@ -105,6 +111,9 @@ func primitiveImagPart(args Pair) interface{} {
 	x := First(args)
 	switch v := x.(type) {
 	case int64:
+		return int64(0)
+	case *big.Rat:
+		_ = v
 		return int64(0)
 	case float64:
 		_ = v
@@ -125,6 +134,8 @@ func primitiveMagnitude(args Pair) interface{} {
 			return -v
 		}
 		return v
+	case *big.Rat:
+		return SimplifyRat(new(big.Rat).Abs(v))
 	case float64:
 		return math.Abs(v)
 	case complex128:
@@ -140,6 +151,11 @@ func primitiveAngle(args Pair) interface{} {
 	switch v := x.(type) {
 	case int64:
 		if v >= 0 {
+			return float64(0)
+		}
+		return math.Pi
+	case *big.Rat:
+		if v.Sign() >= 0 {
 			return float64(0)
 		}
 		return math.Pi
@@ -160,6 +176,9 @@ func numToFloat64(x interface{}) (float64, bool) {
 	switch v := x.(type) {
 	case int64:
 		return float64(v), true
+	case *big.Rat:
+		f, _ := v.Float64()
+		return f, true
 	case float64:
 		return v, true
 	default:
@@ -340,6 +359,9 @@ func ToComplex(x interface{}) complex128 {
 	switch v := x.(type) {
 	case int64:
 		return complex(float64(v), 0)
+	case *big.Rat:
+		f, _ := v.Float64()
+		return complex(f, 0)
 	case float64:
 		return complex(v, 0)
 	case complex128:

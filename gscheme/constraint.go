@@ -1,6 +1,9 @@
 package gscheme
 
-import "fmt"
+import (
+	"fmt"
+	"math/big"
+)
 
 // booleanConstraint is used to enforce boolean type constraints within primitives.
 func booleanConstraint(object interface{}) bool {
@@ -61,6 +64,11 @@ func uint64Constraint(object interface{}) uint64 {
 		return uint64(value)
 	case int64:
 		return uint64(value)
+	case *big.Rat:
+		if value.IsInt() {
+			return uint64(value.Num().Int64())
+		}
+		Err(fmt.Sprintf("Expected integer type, but instead got rational: %s.", value.RatString()), List(value))
 	default:
 		Err(fmt.Sprintf("Expected integer type, but instead got: %T.", value), List(value))
 	}
@@ -93,6 +101,15 @@ func byteConstraint(object interface{}) uint8 {
 			Err("Expected exact integer in range 0-255, but instead got: ", List(object))
 		}
 		return uint8(v)
+	case *big.Rat:
+		if v.IsInt() {
+			n := v.Num().Int64()
+			if n >= 0 && n <= 255 {
+				return uint8(n)
+			}
+		}
+		Err("Expected exact integer in range 0-255, but instead got: ", List(object))
+		return 0
 	case float64:
 		if v < 0 || v > 255 || v != float64(int(v)) {
 			Err("Expected exact integer in range 0-255, but instead got: ", List(object))
@@ -127,6 +144,11 @@ func integerConstraint(object interface{}) interface{} {
 		return value
 	case int64:
 		return value
+	case *big.Rat:
+		if value.IsInt() {
+			return value.Num().Int64()
+		}
+		return Err(fmt.Sprintf("Expected integer type, but instead got rational: %s.", value.RatString()), List(value))
 	default:
 		return Err(fmt.Sprintf("Expected integer type, but instead got: %T.", value), List(value))
 	}
