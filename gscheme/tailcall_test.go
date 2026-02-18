@@ -58,6 +58,44 @@ func TestUnlessTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- if tests ---
+
+func TestIfConsequentTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(if #t (begin 42) 0)`)
+	if result != int64(42) {
+		t.Errorf("(if #t (begin 42) 0) should be 42, got %v", result)
+	}
+}
+
+func TestIfAlternateTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(if #f 0 (begin 42))`)
+	if result != int64(42) {
+		t.Errorf("(if #f 0 (begin 42)) should be 42, got %v", result)
+	}
+}
+
+func TestIfTCOConsequent(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (if (= n 0) 'done (loop (- n 1))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("if consequent TCO should return 'done, got %v", result)
+	}
+}
+
+func TestIfTCOAlternate(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (if (> n 0) (loop (- n 1)) 'done))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("if alternate TCO should return 'done, got %v", result)
+	}
+}
+
 // --- begin tests ---
 
 func TestBeginReturnsLast(t *testing.T) {
