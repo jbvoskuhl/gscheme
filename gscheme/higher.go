@@ -49,6 +49,8 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("assv", 2, 2, primitiveAssv))
 	environment.DefineName(NewPrimitive("error", 1, maxArgs, primitiveError))
 	environment.DefineName(NewPrimitive("raise", 1, 1, primitiveRaise))
+	environment.DefineName(NewPrimitive("error-object-message", 1, 1, primitiveErrorObjectMessage))
+	environment.DefineName(NewPrimitive("error-object-irritants", 1, 1, primitiveErrorObjectIrritants))
 }
 
 // primitiveMap applies a procedure to each element of a list.
@@ -304,6 +306,28 @@ func primitiveAssv(args Pair) interface{} {
 // primitiveError raises an error with the given message.
 func primitiveError(args Pair) interface{} {
 	return Err(Stringify(First(args)), RestPair(args))
+}
+
+// primitiveErrorObjectMessage returns the message string from an error object.
+func primitiveErrorObjectMessage(args Pair) interface{} {
+	err, ok := First(args).(Error)
+	if !ok {
+		return Err("error-object-message: not an error object", args)
+	}
+	return err.GetMessage()
+}
+
+// primitiveErrorObjectIrritants returns the list of irritants from an error object.
+func primitiveErrorObjectIrritants(args Pair) interface{} {
+	err, ok := First(args).(Error)
+	if !ok {
+		return Err("error-object-irritants: not an error object", args)
+	}
+	irritants := err.GetIrritants()
+	if irritants == nil {
+		return nil
+	}
+	return irritants
 }
 
 // primitiveRaise raises a value as an exception. If the value is already an Error, re-raise it directly.

@@ -470,6 +470,73 @@ func TestOrTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- error object accessor tests ---
+
+func TestErrorObjectPredicate(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(guard (e (#t (error-object? e))) (error "test"))`)
+	if result != true {
+		t.Errorf("(error-object? <error>) should be #t, got %v", result)
+	}
+}
+
+func TestErrorObjectPredicateFalse(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(error-object? 42)`)
+	if result != false {
+		t.Errorf("(error-object? 42) should be #f, got %v", result)
+	}
+}
+
+func TestErrorObjectPredicateRaisedNonError(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(guard (e (#t (error-object? e))) (raise 42))`)
+	if result != false {
+		t.Errorf("(error-object? <non-error>) should be #f, got %v", result)
+	}
+}
+
+func TestErrorObjectMessage(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(guard (e (#t (error-object-message e))) (error "hello" 1 2))`)
+	if result != `"hello"` {
+		t.Errorf("(error-object-message ...) should be '\"hello\"', got %v", result)
+	}
+}
+
+func TestErrorObjectIrritants(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(guard (e (#t (error-object-irritants e))) (error "msg" 1 2 3))`)
+	expected := evalScheme(s, `'(1 2 3)`)
+	if !equal(result, expected) {
+		t.Errorf("(error-object-irritants ...) should be (1 2 3), got %v", result)
+	}
+}
+
+func TestErrorObjectIrritantsEmpty(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(guard (e (#t (error-object-irritants e))) (error "msg"))`)
+	if result != nil {
+		t.Errorf("(error-object-irritants ...) with no irritants should be (), got %v", result)
+	}
+}
+
+func TestErrorObjectMessageNonError(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(error-object-message 42)`)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("(error-object-message 42) should raise error, got %T: %v", result, result)
+	}
+}
+
+func TestErrorObjectIrritantsNonError(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(error-object-irritants 42)`)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("(error-object-irritants 42) should raise error, got %T: %v", result, result)
+	}
+}
+
 // --- raise tests ---
 
 func TestRaiseInteger(t *testing.T) {

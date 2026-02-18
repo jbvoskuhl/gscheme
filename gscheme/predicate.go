@@ -19,6 +19,7 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("procedure?", 1, 1, primitiveProcedureP))
 	environment.DefineName(NewPrimitive("vector?", 1, 1, primitiveVectorP))
 	environment.DefineName(NewPrimitive("bytevector?", 1, 1, primitiveBytevectorP))
+	environment.DefineName(NewPrimitive("error-object?", 1, 1, primitiveErrorObjectP))
 	environment.DefineName(NewPrimitive("eof-object?", 1, 1, primitiveEofObjectP))
 	environment.DefineName(NewPrimitive("input-port?", 1, 1, primitiveInputPortP))
 	environment.DefineName(NewPrimitive("port?", 1, 1, primitivePortP))
@@ -351,6 +352,12 @@ func primitiveVectorP(args Pair) interface{} {
 // primitiveBytevectorP implements bytevector? which tests if the argument is a bytevector.
 func primitiveBytevectorP(args Pair) interface{} {
 	_, ok := First(args).([]uint8)
+	return ok
+}
+
+// primitiveErrorObjectP implements error-object? which tests if the argument is an error object.
+func primitiveErrorObjectP(args Pair) interface{} {
+	_, ok := First(args).(Error)
 	return ok
 }
 
