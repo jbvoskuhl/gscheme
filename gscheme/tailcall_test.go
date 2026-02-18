@@ -58,6 +58,93 @@ func TestUnlessTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- case tests ---
+
+func TestCaseMatchFirst(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(case 1 ((1) 'one) ((2) 'two) (else 'other))`)
+	if result != Symbol("one") {
+		t.Errorf("(case 1 ...) should be 'one, got %v", result)
+	}
+}
+
+func TestCaseMatchSecond(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(case 2 ((1) 'one) ((2) 'two) (else 'other))`)
+	if result != Symbol("two") {
+		t.Errorf("(case 2 ...) should be 'two, got %v", result)
+	}
+}
+
+func TestCaseElse(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(case 3 ((1) 'one) ((2) 'two) (else 'other))`)
+	if result != Symbol("other") {
+		t.Errorf("(case 3 ...) should be 'other, got %v", result)
+	}
+}
+
+func TestCaseMultipleValues(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(case 2 ((1 2 3) 'low) ((4 5 6) 'high))`)
+	if result != Symbol("low") {
+		t.Errorf("(case 2 ((1 2 3) ...)) should be 'low, got %v", result)
+	}
+}
+
+func TestCaseTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (case (= n 0)
+                       ((#t) 'done)
+                       (else (loop (- n 1)))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("case TCO loop should return 'done, got %v", result)
+	}
+}
+
+// --- do tests ---
+
+func TestDoBasic(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(do ((i 0 (+ i 1)))
+                               ((= i 5) i))`)
+	if result != int64(5) {
+		t.Errorf("(do ...) should return 5, got %v", result)
+	}
+}
+
+func TestDoMultipleBindings(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(do ((i 0 (+ i 1))
+                                 (sum 0 (+ sum i)))
+                               ((= i 5) sum))`)
+	if result != int64(10) {
+		t.Errorf("(do ...) should return 10 (0+1+2+3+4), got %v", result)
+	}
+}
+
+func TestDoWithBody(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let ((x 0))
+                               (do ((i 0 (+ i 1)))
+                                   ((= i 3) x)
+                                 (set! x (+ x 10))))`)
+	if result != int64(30) {
+		t.Errorf("(do ...) with body should return 30, got %v", result)
+	}
+}
+
+func TestDoTailCallOptimization(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(do ((i 0 (+ i 1)))
+                               ((= i 100000) 'done))`)
+	if result != Symbol("done") {
+		t.Errorf("do TCO loop should return 'done, got %v", result)
+	}
+}
+
 // --- and tests ---
 
 func TestAndNoArgs(t *testing.T) {
