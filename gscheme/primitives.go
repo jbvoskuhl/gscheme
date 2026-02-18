@@ -13,11 +13,13 @@ const primitivesScheme = `
 ;;;;;;;;;;;;;;;; Standard Scheme Macros
 
 ;; or macro: returns the first truthy value or #f
+;; Last argument is in tail position via the 1-arg base case.
 (define or
   (macro args
-    (if (null? args)
-        #f
-        (cons 'cond (map list args)))))
+    (cond ((null? args) #f)
+          ((null? (rest args)) (first args))
+          (else (list 'let (list (list '__or__ (first args)))
+                      (list 'if '__or__ '__or__ (cons 'or (rest args))))))))
 
 ;; and macro: returns #f if any value is false, else returns last value
 (define and

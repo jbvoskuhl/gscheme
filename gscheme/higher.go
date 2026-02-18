@@ -48,6 +48,7 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("assq", 2, 2, primitiveAssq))
 	environment.DefineName(NewPrimitive("assv", 2, 2, primitiveAssv))
 	environment.DefineName(NewPrimitive("error", 1, maxArgs, primitiveError))
+	environment.DefineName(NewPrimitive("raise", 1, 1, primitiveRaise))
 }
 
 // primitiveMap applies a procedure to each element of a list.
@@ -303,4 +304,13 @@ func primitiveAssv(args Pair) interface{} {
 // primitiveError raises an error with the given message.
 func primitiveError(args Pair) interface{} {
 	return Err(Stringify(First(args)), RestPair(args))
+}
+
+// primitiveRaise raises a value as an exception. If the value is already an Error, re-raise it directly.
+func primitiveRaise(args Pair) interface{} {
+	value := First(args)
+	if err, ok := value.(Error); ok {
+		panic(err)
+	}
+	panic(&raisedError{value})
 }

@@ -42,6 +42,17 @@ func (e schemeError) Error() string {
 	return e.message
 }
 
+// raisedError wraps an arbitrary Scheme value so raise can panic with non-Error objects
+// and have them caught by Eval's defer/recover.
+type raisedError struct {
+	value interface{}
+}
+
+func (r *raisedError) String() string     { return Stringify(r.value) }
+func (r *raisedError) Error() string      { return Stringify(r.value) }
+func (r *raisedError) GetMessage() string { return Stringify(r.value) }
+func (r *raisedError) GetIrritants() Pair { return nil }
+
 // Err is used in gscheme to package up an error and raise it using the panic functionality.
 func Err(message string, irritants Pair) interface{} {
 	panic(NewError(message, irritants))

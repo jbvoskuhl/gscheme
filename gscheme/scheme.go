@@ -164,6 +164,46 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 					x = s.reduceCond(args, environment)
 					continue
 
+				case "guard":
+					// (guard (variable cond-clause ...) body ...)
+					guardSpec, ok := First(args).(Pair)
+					if !ok {
+						return Err("guard: bad syntax", List(x))
+					}
+					variable, ok := First(guardSpec).(Symbol)
+					if !ok {
+						return Err("guard: expected variable name", List(First(guardSpec)))
+					}
+					clauses := RestPair(guardSpec)
+					body := Rest(args)
+
+					// Evaluate body in a nested Eval (which has its own defer/recover).
+					// If body raises an error, the nested Eval catches it and returns the Error.
+					bodyResult := s.Eval(Cons(Symbol("begin"), body), environment)
+
+					// If no error was raised, return the body result
+					if _, isErr := bodyResult.(Error); !isErr {
+						return bodyResult
+					}
+
+					// Unwrap raisedError to get the actual raised value
+					conditionValue := interface{}(bodyResult)
+					if raised, ok := bodyResult.(*raisedError); ok {
+						conditionValue = raised.value
+					}
+
+					// Bind condition to variable and evaluate cond clauses
+					guardEnv := NewChildEnvironment(environment)
+					guardEnv.Define(variable, conditionValue)
+					condResult := s.reduceCond(clauses, guardEnv)
+					if condResult == false {
+						// No clause matched — re-raise the original error
+						panic(bodyResult)
+					}
+					environment = guardEnv
+					x = condResult
+					continue
+
 				case "define":
 					first := First(args)
 					if firstPair, ok := first.(Pair); ok {
