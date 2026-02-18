@@ -58,6 +58,43 @@ func TestUnlessTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- begin tests ---
+
+func TestBeginReturnsLast(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(begin 1 2 3)`)
+	if result != int64(3) {
+		t.Errorf("(begin 1 2 3) should be 3, got %v", result)
+	}
+}
+
+func TestBeginEmpty(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(begin)`)
+	if result != nil {
+		t.Errorf("(begin) should be nil, got %v", result)
+	}
+}
+
+func TestBeginSingleExpr(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(begin 42)`)
+	if result != int64(42) {
+		t.Errorf("(begin 42) should be 42, got %v", result)
+	}
+}
+
+func TestBeginTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (begin
+                       (if (= n 0) 'done (loop (- n 1)))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("begin TCO loop should return 'done, got %v", result)
+	}
+}
+
 // --- cond tests ---
 
 func TestCondFirstClause(t *testing.T) {
