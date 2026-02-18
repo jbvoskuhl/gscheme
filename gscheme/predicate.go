@@ -20,6 +20,8 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("vector?", 1, 1, primitiveVectorP))
 	environment.DefineName(NewPrimitive("bytevector?", 1, 1, primitiveBytevectorP))
 	environment.DefineName(NewPrimitive("error-object?", 1, 1, primitiveErrorObjectP))
+	environment.DefineName(NewPrimitive("read-error?", 1, 1, primitiveReadErrorP))
+	environment.DefineName(NewPrimitive("file-error?", 1, 1, primitiveFileErrorP))
 	environment.DefineName(NewPrimitive("eof-object?", 1, 1, primitiveEofObjectP))
 	environment.DefineName(NewPrimitive("input-port?", 1, 1, primitiveInputPortP))
 	environment.DefineName(NewPrimitive("port?", 1, 1, primitivePortP))
@@ -359,6 +361,22 @@ func primitiveBytevectorP(args Pair) interface{} {
 func primitiveErrorObjectP(args Pair) interface{} {
 	_, ok := First(args).(Error)
 	return ok
+}
+
+// primitiveReadErrorP implements read-error? which tests if the argument is a read error.
+func primitiveReadErrorP(args Pair) interface{} {
+	if e, ok := First(args).(Error); ok {
+		return e.IsReadError()
+	}
+	return false
+}
+
+// primitiveFileErrorP implements file-error? which tests if the argument is a file error.
+func primitiveFileErrorP(args Pair) interface{} {
+	if e, ok := First(args).(Error); ok {
+		return e.IsFileError()
+	}
+	return false
 }
 
 // primitiveEofObjectP implements eof-object? which tests if the argument is an EOF object.

@@ -54,7 +54,7 @@ func (s *scheme) LoadCode(code string) Scheme {
 func (s *scheme) LoadFile(file string) Scheme {
 	f, err := os.Open(file)
 	if err != nil {
-		Err("Could not open file: "+file, nil)
+		FileErr("Could not open file: "+file, nil)
 		return s
 	}
 	defer f.Close()

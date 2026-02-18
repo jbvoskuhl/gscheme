@@ -174,7 +174,7 @@ func IsEOF(x interface{}) bool {
 func (p *InputPort) readTail(dotOK bool) interface{} {
 	token := p.nextToken()
 	if token == EOF {
-		return Err("EOF during read.", nil)
+		return ReadErr("EOF during read.", nil)
 	}
 	if token == Symbol(")") {
 		return nil
@@ -383,7 +383,7 @@ func (p *InputPort) nextToken() interface{} {
 			}
 			// Starts with a digit but isn't a valid number — error per R7RS
 			if c >= '0' && c <= '9' {
-				return NewError("Invalid number literal: "+s, nil)
+				return NewReadError("Invalid number literal: "+s, nil)
 			}
 		}
 		// R7RS: identifiers are case-insensitive, fold to lowercase.
