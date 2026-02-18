@@ -2,6 +2,58 @@ package gscheme
 
 import "testing"
 
+// --- and tests ---
+
+func TestAndNoArgs(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(and)`)
+	if result != true {
+		t.Errorf("(and) should be #t, got %v", result)
+	}
+}
+
+func TestAndSingleArg(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(and 42)`)
+	if result != int64(42) {
+		t.Errorf("(and 42) should be 42, got %v", result)
+	}
+}
+
+func TestAndReturnsLastTruthy(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(and 1 2 3)`)
+	if result != int64(3) {
+		t.Errorf("(and 1 2 3) should be 3, got %v", result)
+	}
+}
+
+func TestAndShortCircuits(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(and 1 #f 3)`)
+	if result != false {
+		t.Errorf("(and 1 #f 3) should be #f, got %v", result)
+	}
+}
+
+func TestAndLastArgTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(and #t #t (begin 42))`)
+	if result != int64(42) {
+		t.Errorf("(and #t #t (begin 42)) should be 42, got %v", result)
+	}
+}
+
+func TestAndTailCallOptimization(t *testing.T) {
+	// This would stack overflow without proper TCO in the last argument position
+	s := New()
+	evalScheme(s, `(define (loop n) (and (> n 0) (loop (- n 1))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != false {
+		t.Errorf("and TCO loop should return #f, got %v", result)
+	}
+}
+
 // --- or tests ---
 
 func TestOrNoArgs(t *testing.T) {
