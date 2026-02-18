@@ -2,6 +2,62 @@ package gscheme
 
 import "testing"
 
+// --- when tests ---
+
+func TestWhenTrue(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(when #t 1 2 3)`)
+	if result != int64(3) {
+		t.Errorf("(when #t 1 2 3) should be 3, got %v", result)
+	}
+}
+
+func TestWhenFalse(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(when #f 1 2 3)`)
+	if result != nil {
+		t.Errorf("(when #f ...) should be nil, got %v", result)
+	}
+}
+
+func TestWhenTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n) (when (> n 0) (loop (- n 1))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	// when test is false returns nil; last iteration has n=0 so (> 0 0) is #f
+	if result != nil {
+		t.Errorf("when TCO loop should return nil, got %v", result)
+	}
+}
+
+// --- unless tests ---
+
+func TestUnlessTrue(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(unless #t 1 2 3)`)
+	if result != false {
+		t.Errorf("(unless #t ...) should be #f, got %v", result)
+	}
+}
+
+func TestUnlessFalse(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(unless #f 1 2 3)`)
+	if result != int64(3) {
+		t.Errorf("(unless #f 1 2 3) should be 3, got %v", result)
+	}
+}
+
+func TestUnlessTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n) (unless (= n 0) (loop (- n 1))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	// when n=0, test is true so unless returns #f
+	if result != false {
+		t.Errorf("unless TCO loop should return #f, got %v", result)
+	}
+}
+
 // --- and tests ---
 
 func TestAndNoArgs(t *testing.T) {
