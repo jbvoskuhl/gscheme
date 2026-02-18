@@ -145,6 +145,91 @@ func TestDoTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- let tests ---
+
+func TestLetBasic(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let ((x 1) (y 2)) (+ x y))`)
+	if result != int64(3) {
+		t.Errorf("(let ((x 1) (y 2)) (+ x y)) should be 3, got %v", result)
+	}
+}
+
+func TestLetBodyTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let ((x 10)) (begin 1 2 x))`)
+	if result != int64(10) {
+		t.Errorf("let body last expr should be in tail position, got %v", result)
+	}
+}
+
+func TestLetTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (let ((m (- n 1)))
+                       (if (= m 0) 'done (loop m))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("let TCO loop should return 'done, got %v", result)
+	}
+}
+
+func TestNamedLetBasic(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let loop ((i 0) (sum 0))
+                               (if (= i 5) sum (loop (+ i 1) (+ sum i))))`)
+	if result != int64(10) {
+		t.Errorf("named let should return 10 (0+1+2+3+4), got %v", result)
+	}
+}
+
+func TestNamedLetTailCallOptimization(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let loop ((n 100000))
+                               (if (= n 0) 'done (loop (- n 1))))`)
+	if result != Symbol("done") {
+		t.Errorf("named let TCO should return 'done, got %v", result)
+	}
+}
+
+func TestLetStarBasic(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(let* ((x 1) (y (+ x 1))) y)`)
+	if result != int64(2) {
+		t.Errorf("(let* ((x 1) (y (+ x 1))) y) should be 2, got %v", result)
+	}
+}
+
+func TestLetStarTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (let* ((m (- n 1)))
+                       (if (= m 0) 'done (loop m))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("let* TCO loop should return 'done, got %v", result)
+	}
+}
+
+func TestLetrecBasic(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(letrec ((even? (lambda (n) (if (= n 0) #t (odd? (- n 1)))))
+                                      (odd? (lambda (n) (if (= n 0) #f (even? (- n 1))))))
+                               (even? 10))`)
+	if result != true {
+		t.Errorf("letrec mutual recursion (even? 10) should be #t, got %v", result)
+	}
+}
+
+func TestLetrecTailCallOptimization(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(letrec ((loop (lambda (n) (if (= n 0) 'done (loop (- n 1))))))
+                               (loop 100000))`)
+	if result != Symbol("done") {
+		t.Errorf("letrec TCO loop should return 'done, got %v", result)
+	}
+}
+
 // --- and tests ---
 
 func TestAndNoArgs(t *testing.T) {
