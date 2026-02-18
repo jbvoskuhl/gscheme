@@ -58,6 +58,67 @@ func TestUnlessTailCallOptimization(t *testing.T) {
 	}
 }
 
+// --- cond tests ---
+
+func TestCondFirstClause(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (#t 42))`)
+	if result != int64(42) {
+		t.Errorf("(cond (#t 42)) should be 42, got %v", result)
+	}
+}
+
+func TestCondSecondClause(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (#f 1) (#t 2))`)
+	if result != int64(2) {
+		t.Errorf("(cond (#f 1) (#t 2)) should be 2, got %v", result)
+	}
+}
+
+func TestCondElseTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (#f 1) (else (begin 99)))`)
+	if result != int64(99) {
+		t.Errorf("(cond (#f 1) (else (begin 99))) should be 99, got %v", result)
+	}
+}
+
+func TestCondNoMatchReturnsFalse(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (#f 1) (#f 2))`)
+	if result != false {
+		t.Errorf("(cond (#f 1) (#f 2)) should be #f, got %v", result)
+	}
+}
+
+func TestCondNoBodyReturnsTestValue(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (42))`)
+	if result != int64(42) {
+		t.Errorf("(cond (42)) should return test value 42, got %v", result)
+	}
+}
+
+func TestCondArrowTailPosition(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(cond (1 => (lambda (x) (+ x 10))))`)
+	if result != int64(11) {
+		t.Errorf("(cond (1 => ...)) should be 11, got %v", result)
+	}
+}
+
+func TestCondTailCallOptimization(t *testing.T) {
+	s := New()
+	evalScheme(s, `(define (loop n)
+                     (cond ((= n 0) 'done)
+                           (else (loop (- n 1)))))`)
+	result := evalScheme(s, `(loop 100000)`)
+	if result != Symbol("done") {
+		t.Errorf("cond TCO loop should return 'done, got %v", result)
+	}
+}
+
 // --- case tests ---
 
 func TestCaseMatchFirst(t *testing.T) {
