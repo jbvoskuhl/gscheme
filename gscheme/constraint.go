@@ -138,6 +138,24 @@ func byteConstraint(object interface{}) uint8 {
 	}
 }
 
+// inputPortConstraint is used to enforce InputPort type constraints within primitives.
+func inputPortConstraint(object interface{}) *InputPort {
+	result, ok := object.(*InputPort)
+	if !ok {
+		Err("Expected input port, but instead got: ", List(object))
+	}
+	return result
+}
+
+// outputPortConstraint is used to enforce OutputPort type constraints within primitives.
+func outputPortConstraint(object interface{}) *OutputPort {
+	result, ok := object.(*OutputPort)
+	if !ok {
+		Err("Expected output port, but instead got: ", List(object))
+	}
+	return result
+}
+
 // integerConstraint is used to enforce integer type constraints within primitives.
 func integerConstraint(object interface{}) interface{} {
 	switch value := object.(type) {

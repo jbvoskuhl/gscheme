@@ -24,6 +24,7 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("file-error?", 1, 1, primitiveFileErrorP))
 	environment.DefineName(NewPrimitive("eof-object?", 1, 1, primitiveEofObjectP))
 	environment.DefineName(NewPrimitive("input-port?", 1, 1, primitiveInputPortP))
+	environment.DefineName(NewPrimitive("output-port?", 1, 1, primitiveOutputPortP))
 	environment.DefineName(NewPrimitive("port?", 1, 1, primitivePortP))
 
 	// Number predicates
@@ -390,10 +391,22 @@ func primitiveInputPortP(args Pair) interface{} {
 	return ok
 }
 
+// primitiveOutputPortP implements output-port? which tests if the argument is an output port.
+func primitiveOutputPortP(args Pair) interface{} {
+	_, ok := First(args).(*OutputPort)
+	return ok
+}
+
 // primitivePortP implements port? which tests if the argument is any kind of port.
 func primitivePortP(args Pair) interface{} {
-	_, ok := First(args).(*InputPort)
-	return ok
+	x := First(args)
+	if _, ok := x.(*InputPort); ok {
+		return true
+	}
+	if _, ok := x.(*OutputPort); ok {
+		return true
+	}
+	return false
 }
 
 // primitiveRationalP implements rational? which tests if the argument is a rational number.

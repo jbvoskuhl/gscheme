@@ -1,11 +1,7 @@
 // gscheme implements a simple lightweight Scheme interpreter suitable for embedding into Go programs.
 package gscheme
 
-import (
-	"bufio"
-	"fmt"
-	"os"
-)
+import "os"
 
 // This respresents an instance of the Scheme interpreter.  Instantiate this then evaluate programs here.
 type Scheme interface {
@@ -17,19 +13,25 @@ type Scheme interface {
 	LoadFile(file string) Scheme
 	LoadFiles(file []string) Scheme
 	ReadEvalPrintLoop()
+	CurrentInputPort() *InputPort
+	CurrentOutputPort() *OutputPort
 }
 
 // scheme is the internal representation of the lightweight gscheme runtime.
 type scheme struct {
-	// input InputPort
-	// output *Printer
 	environment Environment
+	inputPort   *InputPort
+	outputPort  *OutputPort
 }
 
 // Create a new gscheme interpreter – they are completely independent and it is safe to create several of them
 // as needed.  Extend the set of built-in primitives to allow your go code to interact with Scheme.
 func New() Scheme {
-	result := &scheme{environment: NewRootEnvironment()}
+	result := &scheme{
+		environment: NewRootEnvironment(),
+		inputPort:   NewInputPort(os.Stdin),
+		outputPort:  NewOutputPort(os.Stdout),
+	}
 	installPrimitives(result.environment)
 	installBooleanPrimitives(result.environment)
 	installCharacterPrimitives(result.environment)
@@ -39,6 +41,7 @@ func New() Scheme {
 	installHigherOrderPrimitives(result.environment)
 	installStringPrimitives(result.environment)
 	installVectorPrimitives(result.environment)
+	installIOPrimitives(result.environment, result)
 	result.loadPrimitivesScheme()
 	return result
 }
@@ -74,16 +77,18 @@ func (s *scheme) LoadFiles(files []string) Scheme {
 // ReadEvalPrintLoop is a convenient option for exploring the gscheme environment outside of its use as an embedded
 // scripting language.
 func (s *scheme) ReadEvalPrintLoop() {
-	input := NewInputPort(bufio.NewReader(os.Stdin))
 	for {
-		fmt.Print("> ")
-		x := input.Read()
+		s.outputPort.WriteString("> ")
+		s.outputPort.Flush()
+		x := s.inputPort.Read()
 		if IsEOF(x) {
 			return
 		}
 		result := s.Eval(x, s.environment)
 		if !IsEOF(result) {
-			fmt.Println(Stringify(result))
+			s.outputPort.WriteString(Stringify(result))
+			s.outputPort.Newline()
+			s.outputPort.Flush()
 		}
 	}
 }
@@ -101,6 +106,16 @@ func (s *scheme) load(input *InputPort) {
 
 func (s *scheme) Environment() Environment {
 	return s.environment
+}
+
+// CurrentInputPort returns the interpreter's current input port.
+func (s *scheme) CurrentInputPort() *InputPort {
+	return s.inputPort
+}
+
+// CurrentOutputPort returns the interpreter's current output port.
+func (s *scheme) CurrentOutputPort() *OutputPort {
+	return s.outputPort
 }
 
 // Eval will evaluate a single Scheme expression with respect to a given environment and return the result.

@@ -92,6 +92,47 @@ func stringifyVector(vector []interface{}) string {
 	return fmt.Sprint("#(", strings.Join(items, " "), ")")
 }
 
+// Display formats a Scheme object for human-readable output (R7RS display).
+// Strings are printed without quotes, characters without #\ prefix,
+// and pairs use Display recursively for their elements.
+func Display(object interface{}) string {
+	if object == nil {
+		return "()"
+	}
+	switch value := object.(type) {
+	case string:
+		return value
+	case rune:
+		return string(value)
+	case Pair:
+		return displayPair(value)
+	default:
+		return Stringify(object)
+	}
+}
+
+// displayPair formats a pair using Display for its elements.
+func displayPair(p Pair) string {
+	builder := strings.Builder{}
+	builder.WriteString("(")
+	var current interface{} = p
+	ok := true
+	for ok {
+		builder.WriteString(Display(First(current)))
+		current = Rest(current)
+		_, ok = current.(Pair)
+		if ok {
+			builder.WriteString(" ")
+		}
+	}
+	if current != nil {
+		builder.WriteString(" . ")
+		builder.WriteString(Display(current))
+	}
+	builder.WriteString(")")
+	return builder.String()
+}
+
 // stringifyComplex formats a complex number in Scheme notation.
 func stringifyComplex(c complex128) string {
 	r, i := real(c), imag(c)
