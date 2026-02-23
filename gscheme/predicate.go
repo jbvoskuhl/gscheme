@@ -25,7 +25,11 @@ func installPredicatePrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("eof-object?", 1, 1, primitiveEofObjectP))
 	environment.DefineName(NewPrimitive("input-port?", 1, 1, primitiveInputPortP))
 	environment.DefineName(NewPrimitive("output-port?", 1, 1, primitiveOutputPortP))
+	environment.DefineName(NewPrimitive("textual-port?", 1, 1, primitivePortP))
+	environment.DefineName(NewPrimitive("binary-port?", 1, 1, primitivePortP))
 	environment.DefineName(NewPrimitive("port?", 1, 1, primitivePortP))
+	environment.DefineName(NewPrimitive("input-port-open?", 1, 1, primitiveInputPortOpenP))
+	environment.DefineName(NewPrimitive("output-port-open?", 1, 1, primitiveOutputPortOpenP))
 
 	// Number predicates
 	environment.DefineName(NewPrimitive("zero?", 1, 1, primitiveZeroP))
@@ -407,6 +411,18 @@ func primitivePortP(args Pair) interface{} {
 		return true
 	}
 	return false
+}
+
+// primitiveInputPortOpenP implements input-port-open? which tests if an input port is still open.
+func primitiveInputPortOpenP(args Pair) interface{} {
+	port := inputPortConstraint(First(args))
+	return port.IsOpen()
+}
+
+// primitiveOutputPortOpenP implements output-port-open? which tests if an output port is still open.
+func primitiveOutputPortOpenP(args Pair) interface{} {
+	port := outputPortConstraint(First(args))
+	return port.IsOpen()
 }
 
 // primitiveRationalP implements rational? which tests if the argument is a rational number.

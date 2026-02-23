@@ -15,6 +15,7 @@ type Scheme interface {
 	ReadEvalPrintLoop()
 	CurrentInputPort() *InputPort
 	CurrentOutputPort() *OutputPort
+	CurrentErrorPort() *OutputPort
 }
 
 // scheme is the internal representation of the lightweight gscheme runtime.
@@ -22,6 +23,7 @@ type scheme struct {
 	environment Environment
 	inputPort   *InputPort
 	outputPort  *OutputPort
+	errorPort   *OutputPort
 }
 
 // Create a new gscheme interpreter – they are completely independent and it is safe to create several of them
@@ -31,6 +33,7 @@ func New() Scheme {
 		environment: NewRootEnvironment(),
 		inputPort:   NewInputPort(os.Stdin),
 		outputPort:  NewOutputPort(os.Stdout),
+		errorPort:   NewOutputPort(os.Stderr),
 	}
 	installPrimitives(result.environment)
 	installBooleanPrimitives(result.environment)
@@ -116,6 +119,21 @@ func (s *scheme) CurrentInputPort() *InputPort {
 // CurrentOutputPort returns the interpreter's current output port.
 func (s *scheme) CurrentOutputPort() *OutputPort {
 	return s.outputPort
+}
+
+// CurrentErrorPort returns the interpreter's current error port.
+func (s *scheme) CurrentErrorPort() *OutputPort {
+	return s.errorPort
+}
+
+// setCurrentInputPort temporarily sets the current input port (used by with-input-from-file).
+func (s *scheme) setCurrentInputPort(p *InputPort) {
+	s.inputPort = p
+}
+
+// setCurrentOutputPort temporarily sets the current output port (used by with-output-to-file).
+func (s *scheme) setCurrentOutputPort(p *OutputPort) {
+	s.outputPort = p
 }
 
 // Eval will evaluate a single Scheme expression with respect to a given environment and return the result.

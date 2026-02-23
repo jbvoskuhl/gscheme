@@ -35,6 +35,7 @@ type InputPort struct {
 	pushedToken   interface{}
 	pushedChar    rune
 	buff          strings.Builder
+	closed        bool
 }
 
 // NewInputPort creates an InputPort from an io.Reader.
@@ -159,10 +160,60 @@ func (p *InputPort) Read() interface{} {
 
 // Close closes the input port.
 func (p *InputPort) Close() error {
+	p.closed = true
 	if closer, ok := p.reader.(io.Closer); ok {
 		return closer.Close()
 	}
 	return nil
+}
+
+// IsOpen returns true if the input port has not been closed.
+func (p *InputPort) IsOpen() bool {
+	return !p.closed
+}
+
+// ReadU8 reads and returns the next byte as an int64 (0-255), or EOF.
+func (p *InputPort) ReadU8() interface{} {
+	b, err := p.in.ReadByte()
+	if err != nil {
+		return EOF
+	}
+	return int64(b)
+}
+
+// PeekU8 peeks at the next byte without consuming it. Returns int64 or EOF.
+func (p *InputPort) PeekU8() interface{} {
+	bytes, err := p.in.Peek(1)
+	if err != nil || len(bytes) == 0 {
+		return EOF
+	}
+	return int64(bytes[0])
+}
+
+// ReadKChars reads up to k characters and returns a string, or EOF if nothing was read.
+func (p *InputPort) ReadKChars(k int) interface{} {
+	var b strings.Builder
+	for i := 0; i < k; i++ {
+		ch := p.ReadChar()
+		if IsEOF(ch) {
+			break
+		}
+		b.WriteRune(ch.(rune))
+	}
+	if b.Len() == 0 {
+		return EOF
+	}
+	return b.String()
+}
+
+// ReadKBytes reads up to k bytes and returns a []uint8, or EOF if nothing was read.
+func (p *InputPort) ReadKBytes(k int) interface{} {
+	buf := make([]byte, k)
+	n, _ := io.ReadAtLeast(p.in, buf, 1)
+	if n == 0 {
+		return EOF
+	}
+	return []uint8(buf[:n])
 }
 
 // IsEOF checks if the argument is the EOF object.
