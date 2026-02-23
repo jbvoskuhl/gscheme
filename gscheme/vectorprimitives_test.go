@@ -8,7 +8,7 @@ func TestInstallVectorPrimitives(t *testing.T) {
 	symbols := []Symbol{
 		"make-vector", "vector", "vector-length", "vector-ref", "vector-set!",
 		"vector-fill!", "vector->list", "list->vector", "vector-copy",
-		"vector-append", "vector->string", "string->vector",
+		"vector-append", "vector->string", "string->vector", "vector-copy!",
 		"vector-map", "vector-for-each",
 		"make-bytevector", "bytevector", "bytevector-length",
 		"bytevector-u8-ref", "bytevector-u8-set!", "bytevector-copy",
@@ -597,5 +597,163 @@ func TestBytevectorEquality(t *testing.T) {
 		List(Symbol("bytevector"), float64(1), float64(3))))
 	if result != false {
 		t.Errorf("Expected #f for unequal bytevectors but got: %v", result)
+	}
+}
+
+func TestVectorToListWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (vector->list (vector 1 2 3 4 5) 1 3) => (2 3)
+	result := evalScheme(s, `(vector->list (vector 1 2 3 4 5) 1 3)`)
+	if Stringify(result) != "(2 3)" {
+		t.Errorf("Expected (2 3) but got: %v", Stringify(result))
+	}
+
+	// (vector->list (vector 1 2 3) 1) => (2 3)
+	result = evalScheme(s, `(vector->list (vector 1 2 3) 1)`)
+	if Stringify(result) != "(2 3)" {
+		t.Errorf("Expected (2 3) but got: %v", Stringify(result))
+	}
+}
+
+func TestVectorFillWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (let ((v (vector 1 2 3 4 5))) (vector-fill! v 0 1 3) v) => #(1 0 0 4 5)
+	result := evalScheme(s, `(let ((v (vector 1 2 3 4 5))) (vector-fill! v 0 1 3) v)`)
+	vec, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	expected := []interface{}{int64(1), int64(0), int64(0), int64(4), int64(5)}
+	for i, v := range expected {
+		if vec[i] != v {
+			t.Errorf("At index %d: expected %v but got %v", i, v, vec[i])
+		}
+	}
+}
+
+func TestVectorToStringWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (vector->string (vector #\a #\b #\c) 1) => "bc"
+	result := evalScheme(s, `(vector->string (vector #\a #\b #\c) 1)`)
+	if result != "bc" {
+		t.Errorf("Expected \"bc\" but got: %v", result)
+	}
+
+	// (vector->string (vector #\a #\b #\c #\d) 1 3) => "bc"
+	result = evalScheme(s, `(vector->string (vector #\a #\b #\c #\d) 1 3)`)
+	if result != "bc" {
+		t.Errorf("Expected \"bc\" but got: %v", result)
+	}
+}
+
+func TestStringToVectorWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (string->vector "abcd" 0 2) => #(#\a #\b)
+	result := evalScheme(s, `(string->vector "abcd" 0 2)`)
+	vec, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if len(vec) != 2 || vec[0] != 'a' || vec[1] != 'b' {
+		t.Errorf("Expected #(#\\a #\\b) but got: %v", result)
+	}
+
+	// (string->vector "abcd" 2) => #(#\c #\d)
+	result = evalScheme(s, `(string->vector "abcd" 2)`)
+	vec, ok = result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if len(vec) != 2 || vec[0] != 'c' || vec[1] != 'd' {
+		t.Errorf("Expected #(#\\c #\\d) but got: %v", result)
+	}
+}
+
+func TestVectorCopyTo(t *testing.T) {
+	s := New()
+
+	// Basic: (let ((to (vector 0 0 0 0 0)) (from (vector 1 2 3))) (vector-copy! to 1 from) to)
+	result := evalScheme(s, `(let ((to (vector 0 0 0 0 0)) (from (vector 1 2 3))) (vector-copy! to 1 from) to)`)
+	vec, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	expected := []interface{}{int64(0), int64(1), int64(2), int64(3), int64(0)}
+	for i, v := range expected {
+		if vec[i] != v {
+			t.Errorf("At index %d: expected %v but got %v", i, v, vec[i])
+		}
+	}
+
+	// With start and end: copies from[1:3] to to[0:]
+	result = evalScheme(s, `(let ((to (vector 0 0 0)) (from (vector 10 20 30))) (vector-copy! to 0 from 1 3) to)`)
+	vec, ok = result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if vec[0] != int64(20) || vec[1] != int64(30) || vec[2] != int64(0) {
+		t.Errorf("Expected #(20 30 0) but got: %v", vec)
+	}
+}
+
+func TestVectorMapMultiVector(t *testing.T) {
+	s := New()
+
+	// Single vector still works
+	result := evalScheme(s, `(vector-map (lambda (x) (+ x 1)) (vector 1 2 3))`)
+	vec, ok := result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if len(vec) != 3 || vec[0] != int64(2) || vec[1] != int64(3) || vec[2] != int64(4) {
+		t.Errorf("Expected #(2 3 4) but got: %v", result)
+	}
+
+	// Multi-vector: (vector-map + (vector 1 2 3) (vector 10 20 30)) => #(11 22 33)
+	result = evalScheme(s, `(vector-map + (vector 1 2 3) (vector 10 20 30))`)
+	vec, ok = result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if len(vec) != 3 || vec[0] != int64(11) || vec[1] != int64(22) || vec[2] != int64(33) {
+		t.Errorf("Expected #(11 22 33) but got: %v", result)
+	}
+
+	// Multi-vector with different lengths
+	result = evalScheme(s, `(vector-map + (vector 1 2) (vector 10 20 30))`)
+	vec, ok = result.([]interface{})
+	if !ok {
+		t.Fatalf("Expected vector but got: %T", result)
+	}
+	if len(vec) != 2 || vec[0] != int64(11) || vec[1] != int64(22) {
+		t.Errorf("Expected #(11 22) but got: %v", result)
+	}
+}
+
+func TestVectorForEachMultiVector(t *testing.T) {
+	s := New()
+
+	// Multi-vector for-each
+	result := evalScheme(s, `
+		(let ((result '()))
+			(vector-for-each
+				(lambda (a b) (set! result (cons (+ a b) result)))
+				(vector 1 2 3) (vector 10 20 30))
+			result)`)
+	if Stringify(result) != "(33 22 11)" {
+		t.Errorf("Expected (33 22 11) but got: %v", Stringify(result))
+	}
+}
+
+func TestInstallVectorCopyTo(t *testing.T) {
+	environment := NewRootEnvironment()
+	installVectorPrimitives(environment)
+	_, ok := environment.Lookup(Symbol("vector-copy!"))
+	if !ok {
+		t.Errorf("Expected to find symbol vector-copy! but it was not found.")
 	}
 }

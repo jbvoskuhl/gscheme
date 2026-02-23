@@ -9,17 +9,18 @@ func installVectorPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("vector-length", 1, 1, primitiveVectorLength))
 	environment.DefineName(NewPrimitive("vector-ref", 2, 2, primitiveVectorRef))
 	environment.DefineName(NewPrimitive("vector-set!", 3, 3, primitiveVectorSet))
-	environment.DefineName(NewPrimitive("vector-fill!", 2, 2, primitiveVectorFill))
-	environment.DefineName(NewPrimitive("vector->list", 1, 1, primitiveVectorToList))
+	environment.DefineName(NewPrimitive("vector-fill!", 2, 4, primitiveVectorFill))
+	environment.DefineName(NewPrimitive("vector->list", 1, 3, primitiveVectorToList))
 	environment.DefineName(NewPrimitive("list->vector", 1, 1, primitiveListToVector))
 	environment.DefineName(NewPrimitive("vector-copy", 1, 3, primitiveVectorCopy))
 	environment.DefineName(NewPrimitive("vector-append", 0, maxArgs, primitiveVectorAppend))
-	environment.DefineName(NewPrimitive("vector->string", 1, 1, primitiveVectorToString))
-	environment.DefineName(NewPrimitive("string->vector", 1, 1, primitiveStringToVector))
+	environment.DefineName(NewPrimitive("vector->string", 1, 3, primitiveVectorToString))
+	environment.DefineName(NewPrimitive("string->vector", 1, 3, primitiveStringToVector))
+	environment.DefineName(NewPrimitive("vector-copy!", 3, 5, primitiveVectorCopyTo))
 
 	// Vector higher-order
-	environment.DefineName(NewHigherOrderPrimitive("vector-map", 2, 2, primitiveVectorMap))
-	environment.DefineName(NewHigherOrderPrimitive("vector-for-each", 2, 2, primitiveVectorForEach))
+	environment.DefineName(NewHigherOrderPrimitive("vector-map", 2, maxArgs, primitiveVectorMap))
+	environment.DefineName(NewHigherOrderPrimitive("vector-for-each", 2, maxArgs, primitiveVectorForEach))
 
 	// Bytevector construction & access
 	environment.DefineName(NewPrimitive("make-bytevector", 1, 2, primitiveMakeBytevector))
@@ -91,23 +92,45 @@ func primitiveVectorSet(args Pair) interface{} {
 	return nil
 }
 
-// primitiveVectorFill fills all elements of a vector with a value.
+// primitiveVectorFill fills elements of a vector with a value, with optional start and end indices.
 func primitiveVectorFill(args Pair) interface{} {
 	vec := vectorConstraint(First(args))
 	fill := Second(args)
-	for i := range vec {
+	start, end := 0, len(vec)
+	if Third(args) != nil {
+		start = indexConstraint(Third(args))
+	}
+	fourth := First(Rest(Rest(Rest(args))))
+	if fourth != nil {
+		end = indexConstraint(fourth)
+	}
+	if start < 0 || end < start || end > len(vec) {
+		return Err(fmt.Sprintf("vector-fill!: invalid range [%d, %d) for vector of length %d", start, end, len(vec)), args)
+	}
+	for i := start; i < end; i++ {
 		vec[i] = fill
 	}
 	return nil
 }
 
-// primitiveVectorToList converts a vector to a list.
+// primitiveVectorToList converts a vector to a list, with optional start and end indices.
 func primitiveVectorToList(args Pair) interface{} {
 	vec := vectorConstraint(First(args))
-	if len(vec) == 0 {
+	start, end := 0, len(vec)
+	if Second(args) != nil {
+		start = indexConstraint(Second(args))
+	}
+	if Third(args) != nil {
+		end = indexConstraint(Third(args))
+	}
+	if start < 0 || end < start || end > len(vec) {
+		return Err(fmt.Sprintf("vector->list: invalid range [%d, %d) for vector of length %d", start, end, len(vec)), args)
+	}
+	sub := vec[start:end]
+	if len(sub) == 0 {
 		return nil
 	}
-	return List(vec...)
+	return List(sub...)
 }
 
 // primitiveListToVector converts a list to a vector.
@@ -161,20 +184,41 @@ func primitiveVectorAppend(args Pair) interface{} {
 	return result
 }
 
-// primitiveVectorToString converts a vector of characters to a string.
+// primitiveVectorToString converts a vector of characters to a string, with optional start and end indices.
 func primitiveVectorToString(args Pair) interface{} {
 	vec := vectorConstraint(First(args))
-	runes := make([]rune, len(vec))
-	for i, elem := range vec {
+	start, end := 0, len(vec)
+	if Second(args) != nil {
+		start = indexConstraint(Second(args))
+	}
+	if Third(args) != nil {
+		end = indexConstraint(Third(args))
+	}
+	if start < 0 || end < start || end > len(vec) {
+		return Err(fmt.Sprintf("vector->string: invalid range [%d, %d) for vector of length %d", start, end, len(vec)), args)
+	}
+	runes := make([]rune, end-start)
+	for i, elem := range vec[start:end] {
 		runes[i] = characterConstraint(elem)
 	}
 	return string(runes)
 }
 
-// primitiveStringToVector converts a string to a vector of characters.
+// primitiveStringToVector converts a string to a vector of characters, with optional start and end indices.
 func primitiveStringToVector(args Pair) interface{} {
 	s := stringConstraint(First(args))
 	runes := []rune(s)
+	start, end := 0, len(runes)
+	if Second(args) != nil {
+		start = indexConstraint(Second(args))
+	}
+	if Third(args) != nil {
+		end = indexConstraint(Third(args))
+	}
+	if start < 0 || end < start || end > len(runes) {
+		return Err(fmt.Sprintf("string->vector: invalid range [%d, %d) for string of length %d", start, end, len(runes)), args)
+	}
+	runes = runes[start:end]
 	vec := make([]interface{}, len(runes))
 	for i, r := range runes {
 		vec[i] = r
@@ -182,32 +226,104 @@ func primitiveStringToVector(args Pair) interface{} {
 	return vec
 }
 
-// primitiveVectorMap applies a procedure to each element and returns a new vector.
+// primitiveVectorMap applies a procedure to corresponding elements of one or more vectors.
 func primitiveVectorMap(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("vector-map: first argument must be a procedure", List(First(args)))
 	}
-	vec := vectorConstraint(Second(args))
-	result := make([]interface{}, len(vec))
-	for i, elem := range vec {
-		quotedArg := List(List(Symbol("quote"), elem))
-		result[i] = proc.Apply(interpreter, quotedArg, environment)
+	rest := RestPair(args)
+	var vecs [][]interface{}
+	minLen := int(^uint(0) >> 1) // max int
+	for rest != nil {
+		vec := vectorConstraint(First(rest))
+		vecs = append(vecs, vec)
+		if len(vec) < minLen {
+			minLen = len(vec)
+		}
+		rest = RestPair(rest)
+	}
+	result := make([]interface{}, minLen)
+	for i := 0; i < minLen; i++ {
+		var quotedArgs Pair
+		var tail Pair
+		for _, vec := range vecs {
+			quoted := List(Symbol("quote"), vec[i])
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				tail = quotedArgs
+			} else {
+				tail.SetRest(newPair)
+				tail = newPair
+			}
+		}
+		result[i] = proc.Apply(interpreter, quotedArgs, environment)
 	}
 	return result
 }
 
-// primitiveVectorForEach applies a procedure to each element for side effects.
+// primitiveVectorForEach applies a procedure to corresponding elements of one or more vectors for side effects.
 func primitiveVectorForEach(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("vector-for-each: first argument must be a procedure", List(First(args)))
 	}
-	vec := vectorConstraint(Second(args))
-	for _, elem := range vec {
-		quotedArg := List(List(Symbol("quote"), elem))
-		proc.Apply(interpreter, quotedArg, environment)
+	rest := RestPair(args)
+	var vecs [][]interface{}
+	minLen := int(^uint(0) >> 1) // max int
+	for rest != nil {
+		vec := vectorConstraint(First(rest))
+		vecs = append(vecs, vec)
+		if len(vec) < minLen {
+			minLen = len(vec)
+		}
+		rest = RestPair(rest)
 	}
+	for i := 0; i < minLen; i++ {
+		var quotedArgs Pair
+		var tail Pair
+		for _, vec := range vecs {
+			quoted := List(Symbol("quote"), vec[i])
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				tail = quotedArgs
+			} else {
+				tail.SetRest(newPair)
+				tail = newPair
+			}
+		}
+		proc.Apply(interpreter, quotedArgs, environment)
+	}
+	return nil
+}
+
+// primitiveVectorCopyTo implements vector-copy! (to at from [start [end]]).
+func primitiveVectorCopyTo(args Pair) interface{} {
+	to := vectorConstraint(First(args))
+	at := indexConstraint(Second(args))
+	from := vectorConstraint(Third(args))
+	start := 0
+	end := len(from)
+	// 4th arg: start
+	fourth := First(Rest(Rest(Rest(args))))
+	if fourth != nil {
+		start = indexConstraint(fourth)
+	}
+	// 5th arg: end
+	fifth := First(Rest(Rest(Rest(Rest(args)))))
+	if fifth != nil {
+		end = indexConstraint(fifth)
+	}
+	if start < 0 || end < start || end > len(from) {
+		return Err(fmt.Sprintf("vector-copy!: invalid source range [%d, %d) for vector of length %d", start, end, len(from)), args)
+	}
+	count := end - start
+	if at < 0 || at+count > len(to) {
+		return Err(fmt.Sprintf("vector-copy!: destination range [%d, %d) out of range for vector of length %d", at, at+count, len(to)), args)
+	}
+	copy(to[at:], from[start:end])
 	return nil
 }
 

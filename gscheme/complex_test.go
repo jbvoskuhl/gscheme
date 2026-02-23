@@ -375,4 +375,86 @@ func TestExpLog(t *testing.T) {
 	if !ok || math.Abs(f-1) > 1e-10 {
 		t.Errorf("Expected (log e) to be 1 but was: %v", result)
 	}
+
+	// 1-arg with int64: (log 1) => 0
+	result = scheme.EvalGlobal(List(Symbol("log"), int64(1)))
+	if result != float64(0) {
+		t.Errorf("Expected (log 1) [int64] to be 0 but was: %v (%T)", result, result)
+	}
+
+	// 1-arg with int64: (log 2) ~ 0.693
+	result = scheme.EvalGlobal(List(Symbol("log"), int64(2)))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f-math.Ln2) > 1e-10 {
+		t.Errorf("Expected (log 2) [int64] to be ln(2) but was: %v (%T)", result, result)
+	}
+
+	// 1-arg with complex128: (log 1+0i) => 0.0
+	scheme.Environment().Define(Symbol("cone"), complex(1, 0))
+	result = scheme.EvalGlobal(List(Symbol("log"), Symbol("cone")))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f) > 1e-10 {
+		t.Errorf("Expected (log 1+0i) to be 0 but was: %v (%T)", result, result)
+	}
+
+	// 1-arg with complex128 that has imaginary part: (log i) => 0+pi/2*i
+	scheme.Environment().Define(Symbol("ci"), complex(0, 1))
+	result = scheme.EvalGlobal(List(Symbol("log"), Symbol("ci")))
+	c, cOk := result.(complex128)
+	if !cOk {
+		t.Errorf("Expected complex result from (log i) but got: %v (%T)", result, result)
+	} else if math.Abs(real(c)) > 1e-10 || math.Abs(imag(c)-math.Pi/2) > 1e-10 {
+		t.Errorf("Expected (log i) to be ~0+1.5708i but was: %v", result)
+	}
+
+	// 2-arg with float64: (log 8 2) => 3.0
+	result = scheme.EvalGlobal(List(Symbol("log"), float64(8), float64(2)))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f-3) > 1e-10 {
+		t.Errorf("Expected (log 8 2) to be 3 but was: %v", result)
+	}
+
+	// 2-arg with float64: (log 100 10) => 2.0
+	result = scheme.EvalGlobal(List(Symbol("log"), float64(100), float64(10)))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f-2) > 1e-10 {
+		t.Errorf("Expected (log 100 10) to be 2 but was: %v", result)
+	}
+
+	// 2-arg with int64 args: (log 8 2) => 3.0
+	result = scheme.EvalGlobal(List(Symbol("log"), int64(8), int64(2)))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f-3) > 1e-10 {
+		t.Errorf("Expected (log 8 2) [int64] to be 3 but was: %v (%T)", result, result)
+	}
+
+	// 2-arg with int64 args: (log 27 3) => 3.0
+	result = scheme.EvalGlobal(List(Symbol("log"), int64(27), int64(3)))
+	f, ok = result.(float64)
+	if !ok || math.Abs(f-3) > 1e-10 {
+		t.Errorf("Expected (log 27 3) [int64] to be 3 but was: %v (%T)", result, result)
+	}
+
+	// 2-arg with complex128 z, real base: (log -1 e) => pi*i / 1 = pi*i
+	scheme.Environment().Define(Symbol("neg1c"), complex(-1, 0))
+	result = scheme.EvalGlobal(List(Symbol("log"), Symbol("neg1c"), float64(math.E)))
+	c, cOk = result.(complex128)
+	if !cOk {
+		t.Errorf("Expected complex result from (log -1+0i e) but got: %v (%T)", result, result)
+	} else if math.Abs(real(c)) > 1e-10 || math.Abs(imag(c)-math.Pi) > 1e-10 {
+		t.Errorf("Expected (log -1+0i e) to be ~0+pi*i but was: %v", result)
+	}
+
+	// 2-arg with complex128 base: (log e i) => 1 / (pi/2*i) = -2i/pi
+	result = scheme.EvalGlobal(List(Symbol("log"), float64(math.E), Symbol("ci")))
+	c, cOk = result.(complex128)
+	if !cOk {
+		t.Errorf("Expected complex result from (log e i) but got: %v (%T)", result, result)
+	} else {
+		// log(e)/log(i) = 1 / (pi/2*i) = -2i/pi
+		expectedImag := -2.0 / math.Pi
+		if math.Abs(real(c)) > 1e-10 || math.Abs(imag(c)-expectedImag) > 1e-10 {
+			t.Errorf("Expected (log e i) to have imag ~ -2/pi but was: %v", result)
+		}
+	}
 }

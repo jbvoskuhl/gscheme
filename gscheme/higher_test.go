@@ -149,6 +149,30 @@ func TestMemv(t *testing.T) {
 	}
 }
 
+func TestMemberWithComparator(t *testing.T) {
+	s := New()
+
+	// (member 2.0 '(1 2 3) =) => (2 3)
+	result := evalScheme(s, `(member 2.0 '(1 2 3) =)`)
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected pair but got: %v (%T)", result, result)
+	}
+	if Stringify(pair) != "(2 3)" {
+		t.Errorf("Expected (2 3) but got: %v", Stringify(pair))
+	}
+
+	// (member "b" '("a" "b" "c") string=?) => ("b" "c")
+	result = evalScheme(s, `(member "b" '("a" "b" "c") string=?)`)
+	pair, ok = result.(Pair)
+	if !ok {
+		t.Fatalf("Expected pair but got: %v (%T)", result, result)
+	}
+	if Stringify(pair) != "(\"b\" \"c\")" {
+		t.Errorf("Expected (\"b\" \"c\") but got: %v", Stringify(pair))
+	}
+}
+
 func TestAssoc(t *testing.T) {
 	scheme := New()
 
@@ -174,6 +198,26 @@ func TestAssoc(t *testing.T) {
 		List(Symbol("quote"), List(
 			List(Symbol("a"), float64(1)),
 			List(Symbol("b"), float64(2))))))
+	if result != false {
+		t.Errorf("Expected #f but got: %v", result)
+	}
+}
+
+func TestAssocWithComparator(t *testing.T) {
+	s := New()
+
+	// (assoc 2.0 '((1 . a) (2 . b) (3 . c)) =) => (2 . b)
+	result := evalScheme(s, `(assoc 2.0 '((1 . a) (2 . b) (3 . c)) =)`)
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected pair but got: %v (%T)", result, result)
+	}
+	if Stringify(pair) != "(2 . b)" {
+		t.Errorf("Expected (2 . b) but got: %v", Stringify(pair))
+	}
+
+	// (assoc 5 '((1 . a) (2 . b)) =) => #f
+	result = evalScheme(s, `(assoc 5 '((1 . a) (2 . b)) =)`)
 	if result != false {
 		t.Errorf("Expected #f but got: %v", result)
 	}

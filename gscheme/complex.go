@@ -25,7 +25,7 @@ func installComplexPrimitives(environment Environment) {
 	// Additional math functions that work with complex numbers
 	environment.DefineName(NewPrimitive("sqrt", 1, 1, primitiveSqrt))
 	environment.DefineName(NewPrimitive("exp", 1, 1, primitiveExp))
-	environment.DefineName(NewPrimitive("log", 1, 1, primitiveLog))
+	environment.DefineName(NewPrimitive("log", 1, 2, primitiveLog))
 	environment.DefineName(NewPrimitive("sin", 1, 1, primitiveSin))
 	environment.DefineName(NewPrimitive("cos", 1, 1, primitiveCos))
 	environment.DefineName(NewPrimitive("tan", 1, 1, primitiveTan))
@@ -244,23 +244,38 @@ func primitiveExp(args Pair) interface{} {
 	return Err("exp: expected number", args)
 }
 
-// primitiveLog implements log (natural logarithm) for real and complex numbers.
-func primitiveLog(args Pair) interface{} {
-	x := First(args)
+// logValue computes the natural log of a single Scheme number.
+func logValue(x interface{}) interface{} {
 	if f, ok := numToFloat64(x); ok {
 		if f > 0 {
 			return math.Log(f)
 		}
-		return cmplx.Log(complex(f, 0))
+		return SimplifyComplex(cmplx.Log(complex(f, 0)))
 	}
 	if c, ok := x.(complex128); ok {
-		result := cmplx.Log(c)
-		if imag(result) == 0 {
-			return real(result)
-		}
-		return result
+		return SimplifyComplex(cmplx.Log(c))
 	}
-	return Err("log: expected number", args)
+	return nil
+}
+
+// primitiveLog implements log (natural logarithm) for real and complex numbers.
+// With two arguments, computes log(z) / log(base).
+func primitiveLog(args Pair) interface{} {
+	result := logValue(First(args))
+	if result == nil {
+		return Err("log: expected number", args)
+	}
+	if Second(args) != nil {
+		base := logValue(Second(args))
+		if base == nil {
+			return Err("log: expected number for base", args)
+		}
+		// Divide result by base — both may be float64 or complex128
+		rNum := ToComplex(result)
+		rDen := ToComplex(base)
+		return SimplifyComplex(rNum / rDen)
+	}
+	return result
 }
 
 // primitiveSin implements sin for real and complex numbers.

@@ -106,6 +106,34 @@ func TestSymbolStringMethod(t *testing.T) {
 	}
 }
 
+func TestSymbolEqual(t *testing.T) {
+	s := New()
+
+	// (symbol=? 'a 'a) => #t
+	result := evalScheme(s, `(symbol=? 'a 'a)`)
+	if result != true {
+		t.Errorf("Expected #t for (symbol=? 'a 'a) but got: %v", result)
+	}
+
+	// (symbol=? 'a 'b) => #f
+	result = evalScheme(s, `(symbol=? 'a 'b)`)
+	if result != false {
+		t.Errorf("Expected #f for (symbol=? 'a 'b) but got: %v", result)
+	}
+
+	// (symbol=? 'x 'x 'x) => #t (variadic)
+	result = evalScheme(s, `(symbol=? 'x 'x 'x)`)
+	if result != true {
+		t.Errorf("Expected #t for (symbol=? 'x 'x 'x) but got: %v", result)
+	}
+
+	// (symbol=? 'x 'x 'y) => #f (variadic, one different)
+	result = evalScheme(s, `(symbol=? 'x 'x 'y)`)
+	if result != false {
+		t.Errorf("Expected #f for (symbol=? 'x 'x 'y) but got: %v", result)
+	}
+}
+
 func TestSymbolEmptyString(t *testing.T) {
 	interpreter := New()
 	expression := List(Symbol("string->symbol"), "")

@@ -15,7 +15,7 @@ func installStringPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("string-length", 1, 1, primitiveStringLength))
 	environment.DefineName(NewPrimitive("string-ref", 2, 2, primitiveStringRef))
 	environment.DefineName(NewPrimitive("substring", 3, 3, primitiveSubstring))
-	environment.DefineName(NewPrimitive("string-copy", 1, 1, primitiveStringCopy))
+	environment.DefineName(NewPrimitive("string-copy", 1, 3, primitiveStringCopy))
 
 	// Case-sensitive comparisons
 	environment.DefineName(NewPrimitive("string=?", 2, maxArgs, primitiveStringEqual))
@@ -41,13 +41,13 @@ func installStringPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("number->string", 1, 2, primitiveNumberToString))
 
 	// Conversion
-	environment.DefineName(NewPrimitive("string->list", 1, 1, primitiveStringToList))
+	environment.DefineName(NewPrimitive("string->list", 1, 3, primitiveStringToList))
 	environment.DefineName(NewPrimitive("list->string", 1, 1, primitiveListToString))
 	environment.DefineName(NewPrimitive("string->number", 1, 2, primitiveStringToNumber))
 
 	// Higher-order
-	environment.DefineName(NewHigherOrderPrimitive("string-map", 2, 2, primitiveStringMap))
-	environment.DefineName(NewHigherOrderPrimitive("string-for-each", 2, 2, primitiveStringForEach))
+	environment.DefineName(NewHigherOrderPrimitive("string-map", 2, maxArgs, primitiveStringMap))
+	environment.DefineName(NewHigherOrderPrimitive("string-for-each", 2, maxArgs, primitiveStringForEach))
 }
 
 // primitiveMakeString creates a string of k copies of an optional character (default space).
@@ -99,9 +99,21 @@ func primitiveSubstring(args Pair) interface{} {
 	return string(runes[start:end])
 }
 
-// primitiveStringCopy returns a copy of the string (identity for Go immutable strings).
+// primitiveStringCopy returns a copy of the string, with optional start and end indices.
 func primitiveStringCopy(args Pair) interface{} {
-	return stringConstraint(First(args))
+	s := stringConstraint(First(args))
+	runes := []rune(s)
+	start, end := 0, len(runes)
+	if Second(args) != nil {
+		start = indexConstraint(Second(args))
+	}
+	if Third(args) != nil {
+		end = indexConstraint(Third(args))
+	}
+	if start < 0 || end < start || end > len(runes) {
+		return Err(fmt.Sprintf("string-copy: invalid range [%d, %d) for string of length %d", start, end, len(runes)), args)
+	}
+	return string(runes[start:end])
 }
 
 // stringCompare creates a variadic string comparison primitive.
@@ -201,10 +213,21 @@ func primitiveNumberToString(args Pair) interface{} {
 	return strconv.FormatInt(n, radix)
 }
 
-// primitiveStringToList converts a string to a list of characters.
+// primitiveStringToList converts a string to a list of characters, with optional start and end indices.
 func primitiveStringToList(args Pair) interface{} {
 	s := stringConstraint(First(args))
 	runes := []rune(s)
+	start, end := 0, len(runes)
+	if Second(args) != nil {
+		start = indexConstraint(Second(args))
+	}
+	if Third(args) != nil {
+		end = indexConstraint(Third(args))
+	}
+	if start < 0 || end < start || end > len(runes) {
+		return Err(fmt.Sprintf("string->list: invalid range [%d, %d) for string of length %d", start, end, len(runes)), args)
+	}
+	runes = runes[start:end]
 	elements := make([]interface{}, len(runes))
 	for i, r := range runes {
 		elements[i] = r
@@ -260,17 +283,40 @@ func primitiveStringToNumber(args Pair) interface{} {
 	return n
 }
 
-// primitiveStringMap applies a procedure to each character of a string and builds a result string.
+// primitiveStringMap applies a procedure to corresponding characters of one or more strings.
 func primitiveStringMap(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("string-map: first argument must be a procedure", List(First(args)))
 	}
-	s := stringConstraint(Second(args))
+	rest := RestPair(args)
+	var runeSlices [][]rune
+	minLen := int(^uint(0) >> 1) // max int
+	for rest != nil {
+		s := stringConstraint(First(rest))
+		runes := []rune(s)
+		runeSlices = append(runeSlices, runes)
+		if len(runes) < minLen {
+			minLen = len(runes)
+		}
+		rest = RestPair(rest)
+	}
 	var builder strings.Builder
-	for _, ch := range s {
-		quotedArg := List(List(Symbol("quote"), ch))
-		result := proc.Apply(interpreter, quotedArg, environment)
+	for i := 0; i < minLen; i++ {
+		var quotedArgs Pair
+		var tail Pair
+		for _, runes := range runeSlices {
+			quoted := List(Symbol("quote"), runes[i])
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				tail = quotedArgs
+			} else {
+				tail.SetRest(newPair)
+				tail = newPair
+			}
+		}
+		result := proc.Apply(interpreter, quotedArgs, environment)
 		r, ok := result.(rune)
 		if !ok {
 			return Err("string-map: procedure must return a character", List(result))
@@ -280,16 +326,39 @@ func primitiveStringMap(interpreter Scheme, args Pair, environment Environment) 
 	return builder.String()
 }
 
-// primitiveStringForEach applies a procedure to each character of a string for side effects.
+// primitiveStringForEach applies a procedure to corresponding characters of one or more strings for side effects.
 func primitiveStringForEach(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("string-for-each: first argument must be a procedure", List(First(args)))
 	}
-	s := stringConstraint(Second(args))
-	for _, ch := range s {
-		quotedArg := List(List(Symbol("quote"), ch))
-		proc.Apply(interpreter, quotedArg, environment)
+	rest := RestPair(args)
+	var runeSlices [][]rune
+	minLen := int(^uint(0) >> 1) // max int
+	for rest != nil {
+		s := stringConstraint(First(rest))
+		runes := []rune(s)
+		runeSlices = append(runeSlices, runes)
+		if len(runes) < minLen {
+			minLen = len(runes)
+		}
+		rest = RestPair(rest)
+	}
+	for i := 0; i < minLen; i++ {
+		var quotedArgs Pair
+		var tail Pair
+		for _, runes := range runeSlices {
+			quoted := List(Symbol("quote"), runes[i])
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				tail = quotedArgs
+			} else {
+				tail.SetRest(newPair)
+				tail = newPair
+			}
+		}
+		proc.Apply(interpreter, quotedArgs, environment)
 	}
 	return nil
 }

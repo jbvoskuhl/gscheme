@@ -562,3 +562,78 @@ func TestStringForEach(t *testing.T) {
 		t.Errorf("Expected nil but got: %v", result)
 	}
 }
+
+func TestStringCopyWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (string-copy "hello" 1 3) => "el"
+	result := evalScheme(s, `(string-copy "hello" 1 3)`)
+	if result != "el" {
+		t.Errorf("Expected \"el\" but got: %v", result)
+	}
+
+	// (string-copy "hello" 2) => "llo"
+	result = evalScheme(s, `(string-copy "hello" 2)`)
+	if result != "llo" {
+		t.Errorf("Expected \"llo\" but got: %v", result)
+	}
+
+	// (string-copy "hello") => "hello" (no change)
+	result = evalScheme(s, `(string-copy "hello")`)
+	if result != "hello" {
+		t.Errorf("Expected \"hello\" but got: %v", result)
+	}
+}
+
+func TestStringToListWithStartEnd(t *testing.T) {
+	s := New()
+
+	// (string->list "abc" 1) => (#\b #\c)
+	result := evalScheme(s, `(string->list "abc" 1)`)
+	if Stringify(result) != "(#\\b #\\c)" {
+		t.Errorf("Expected (#\\b #\\c) but got: %v", Stringify(result))
+	}
+
+	// (string->list "abcde" 1 3) => (#\b #\c)
+	result = evalScheme(s, `(string->list "abcde" 1 3)`)
+	if Stringify(result) != "(#\\b #\\c)" {
+		t.Errorf("Expected (#\\b #\\c) but got: %v", Stringify(result))
+	}
+}
+
+func TestStringMapMultiString(t *testing.T) {
+	s := New()
+
+	// Single string still works
+	result := evalScheme(s, `(string-map char-upcase "hello")`)
+	if result != "HELLO" {
+		t.Errorf("Expected \"HELLO\" but got: %v", result)
+	}
+
+	// Multi-string: (string-map (lambda (a b) a) "abc" "def") => "abc"
+	result = evalScheme(s, `(string-map (lambda (a b) a) "abc" "def")`)
+	if result != "abc" {
+		t.Errorf("Expected \"abc\" but got: %v", result)
+	}
+
+	// Multi-string with different lengths stops at shortest
+	result = evalScheme(s, `(string-map (lambda (a b) a) "ab" "defg")`)
+	if result != "ab" {
+		t.Errorf("Expected \"ab\" but got: %v", result)
+	}
+}
+
+func TestStringForEachMultiString(t *testing.T) {
+	s := New()
+
+	// Multi-string for-each: accumulate pairs
+	result := evalScheme(s, `
+		(let ((result '()))
+			(string-for-each
+				(lambda (a b) (set! result (cons (list a b) result)))
+				"ab" "cd")
+			result)`)
+	if Stringify(result) != "((#\\b #\\d) (#\\a #\\c))" {
+		t.Errorf("Expected ((#\\b #\\d) (#\\a #\\c)) but got: %v", Stringify(result))
+	}
+}

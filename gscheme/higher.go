@@ -41,10 +41,10 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewHigherOrderPrimitive("apply", 2, 2, primitiveApply))
 	environment.DefineName(NewHigherOrderPrimitive("eval", 1, 2, primitiveEval))
 	environment.DefineName(NewHigherOrderPrimitive("for-each", 2, 2, primitiveForEach))
-	environment.DefineName(NewPrimitive("member", 2, 2, primitiveMember))
+	environment.DefineName(NewHigherOrderPrimitive("member", 2, 3, primitiveMember))
 	environment.DefineName(NewPrimitive("memq", 2, 2, primitiveMemq))
 	environment.DefineName(NewPrimitive("memv", 2, 2, primitiveMemv))
-	environment.DefineName(NewPrimitive("assoc", 2, 2, primitiveAssoc))
+	environment.DefineName(NewHigherOrderPrimitive("assoc", 2, 3, primitiveAssoc))
 	environment.DefineName(NewPrimitive("assq", 2, 2, primitiveAssq))
 	environment.DefineName(NewPrimitive("assv", 2, 2, primitiveAssv))
 	environment.DefineName(NewPrimitive("error", 1, maxArgs, primitiveError))
@@ -193,12 +193,28 @@ func eqv(x, y interface{}) bool {
 }
 
 // primitiveMember returns the sublist starting with the first occurrence of obj, or #f.
-func primitiveMember(args Pair) interface{} {
+// Optional third argument is a comparison procedure.
+func primitiveMember(interpreter Scheme, args Pair, environment Environment) interface{} {
 	obj := First(args)
 	list := Second(args)
+	compare := Third(args)
+	var comparator Applyer
+	if compare != nil {
+		var ok bool
+		comparator, ok = compare.(Applyer)
+		if !ok {
+			return Err("member: third argument must be a procedure", List(compare))
+		}
+	}
 	for list != nil {
 		if listPair, ok := list.(Pair); ok {
-			if equal(obj, First(listPair)) {
+			if comparator != nil {
+				quotedArgs := List(List(Symbol("quote"), obj), List(Symbol("quote"), First(listPair)))
+				result := comparator.Apply(interpreter, quotedArgs, environment)
+				if Truth(result) {
+					return list
+				}
+			} else if equal(obj, First(listPair)) {
 				return list
 			}
 			list = listPair.Rest()
@@ -244,14 +260,30 @@ func primitiveMemv(args Pair) interface{} {
 }
 
 // primitiveAssoc searches an alist for a pair whose car equals key using equal?.
-func primitiveAssoc(args Pair) interface{} {
+// Optional third argument is a comparison procedure.
+func primitiveAssoc(interpreter Scheme, args Pair, environment Environment) interface{} {
 	key := First(args)
 	alist := Second(args)
+	compare := Third(args)
+	var comparator Applyer
+	if compare != nil {
+		var ok bool
+		comparator, ok = compare.(Applyer)
+		if !ok {
+			return Err("assoc: third argument must be a procedure", List(compare))
+		}
+	}
 	for alist != nil {
 		if alistPair, ok := alist.(Pair); ok {
 			entry := First(alistPair)
 			if entryPair, ok := entry.(Pair); ok {
-				if equal(key, First(entryPair)) {
+				if comparator != nil {
+					quotedArgs := List(List(Symbol("quote"), key), List(Symbol("quote"), First(entryPair)))
+					result := comparator.Apply(interpreter, quotedArgs, environment)
+					if Truth(result) {
+						return entry
+					}
+				} else if equal(key, First(entryPair)) {
 					return entry
 				}
 			}
