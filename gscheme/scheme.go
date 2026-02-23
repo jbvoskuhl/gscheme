@@ -1,7 +1,11 @@
 // gscheme implements a simple lightweight Scheme interpreter suitable for embedding into Go programs.
 package gscheme
 
-import "os"
+import (
+	"io"
+	"os"
+	"strings"
+)
 
 // This respresents an instance of the Scheme interpreter.  Instantiate this then evaluate programs here.
 type Scheme interface {
@@ -79,8 +83,74 @@ func (s *scheme) LoadFiles(files []string) Scheme {
 }
 
 // ReadEvalPrintLoop is a convenient option for exploring the gscheme environment outside of its use as an embedded
-// scripting language.
+// scripting language. When stdin is a terminal, it provides readline-style line editing with history.
 func (s *scheme) ReadEvalPrintLoop() {
+	rl := NewReadline()
+	if rl == nil {
+		s.readEvalPrintLoopPipe()
+		return
+	}
+
+	accumulated := ""
+	prompt := "> "
+	for {
+		line, err := rl.ReadLine(prompt)
+		if err == io.EOF {
+			return
+		}
+		if err == ErrInterrupt {
+			accumulated = ""
+			prompt = "> "
+			continue
+		}
+		if err != nil {
+			return
+		}
+
+		if accumulated == "" {
+			accumulated = line
+		} else {
+			accumulated += "\n" + line
+		}
+
+		if strings.TrimSpace(accumulated) == "" {
+			accumulated = ""
+			prompt = "> "
+			continue
+		}
+
+		input := NewInputPortFromString(accumulated)
+		x, incomplete := s.tryRead(input)
+		if incomplete {
+			prompt = "  "
+			continue
+		}
+
+		accumulated = ""
+		prompt = "> "
+
+		if IsEOF(x) {
+			continue
+		}
+
+		if _, isErr := x.(Error); isErr {
+			s.outputPort.WriteString(Stringify(x))
+			s.outputPort.Newline()
+			s.outputPort.Flush()
+			continue
+		}
+
+		result := s.Eval(x, s.environment)
+		if !IsEOF(result) {
+			s.outputPort.WriteString(Stringify(result))
+			s.outputPort.Newline()
+			s.outputPort.Flush()
+		}
+	}
+}
+
+// readEvalPrintLoopPipe is the original REPL for pipe/file input.
+func (s *scheme) readEvalPrintLoopPipe() {
 	for {
 		s.outputPort.WriteString("> ")
 		s.outputPort.Flush()
@@ -95,6 +165,29 @@ func (s *scheme) ReadEvalPrintLoop() {
 			s.outputPort.Flush()
 		}
 	}
+}
+
+// tryRead attempts to read one Scheme expression from the input port.
+// Returns (expression, false) on success, or (nil, true) if the input is
+// incomplete and more lines are needed.
+func (s *scheme) tryRead(input *InputPort) (result interface{}, incomplete bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(Error); ok && e.IsReadError() {
+				if e.GetMessage() == "EOF during read." {
+					result = nil
+					incomplete = true
+					return
+				}
+				result = e
+				incomplete = false
+				return
+			}
+			panic(r)
+		}
+	}()
+	x := input.Read()
+	return x, false
 }
 
 // load reads and evaluates expressions from an InputPort until EOF.
