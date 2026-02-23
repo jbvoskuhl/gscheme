@@ -163,7 +163,7 @@ func installListPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("make-list", 1, maxArgs, primitiveMakeList))
 	environment.DefineName(NewPrimitive("list", 0, maxArgs, primitiveList))
 	environment.DefineName(NewPrimitive("length", 1, 1, primitiveLength))
-	environment.DefineName(NewPrimitive("append", 0, 2, primitiveAppend))
+	environment.DefineName(NewPrimitive("append", 0, maxArgs, primitiveAppend))
 	environment.DefineName(NewPrimitive("reverse", 1, 1, primitiveReverse))
 	environment.DefineName(NewPrimitive("list-tail", 2, 2, primitiveListTail))
 	environment.DefineName(NewPrimitive("list-ref", 2, 2, primitiveListRef))
@@ -392,41 +392,50 @@ func primitiveListCopy(args Pair) interface{} {
 	return head
 }
 
-// primitiveAppend builds a new list with the second one appended to the end of the first.
+// primitiveAppend appends zero or more lists. The last argument need not be a list.
 func primitiveAppend(args Pair) (result interface{}) {
 	if args == nil {
 		return nil
 	}
-	list := First(args)
-	if Rest(args) == nil {
-		return list
+	// Collect all arguments into a slice
+	var allArgs []interface{}
+	for args != nil {
+		allArgs = append(allArgs, First(args))
+		args = RestPair(args)
 	}
-	rest := Second(args)
-	// If the first list is empty, just return the second
-	if list == nil {
-		return rest
+	// Single argument: return as-is (last arg need not be a list per R7RS)
+	if len(allArgs) == 1 {
+		return allArgs[0]
 	}
-	listPair, ok := list.(Pair)
-	if !ok {
-		return Err("append: first argument must be a list", List(list))
-	}
-	// Copy the first list
-	var head Pair
-	var tail Pair
-	for listPair != nil {
-		newPair := NewPair(First(listPair), nil)
-		if head == nil {
-			head = newPair
-			tail = head
-		} else {
-			tail.SetRest(newPair)
-			tail = newPair
+	// Work backwards: the last element becomes the accumulated tail
+	accumulated := allArgs[len(allArgs)-1]
+	for i := len(allArgs) - 2; i >= 0; i-- {
+		list := allArgs[i]
+		if list == nil {
+			continue
 		}
-		listPair = RestPair(listPair)
+		listPair, ok := list.(Pair)
+		if !ok {
+			return Err("append: argument must be a list", List(list))
+		}
+		// Copy this list and attach accumulated as tail
+		var head Pair
+		var tail Pair
+		for listPair != nil {
+			newPair := NewPair(First(listPair), nil)
+			if head == nil {
+				head = newPair
+				tail = head
+			} else {
+				tail.SetRest(newPair)
+				tail = newPair
+			}
+			listPair = RestPair(listPair)
+		}
+		if tail != nil {
+			tail.SetRest(accumulated)
+		}
+		accumulated = head
 	}
-	// Append the second list to the end
-	if tail != nil {
-		tail.SetRest(rest)
-	}
-	return head
+	return accumulated
 }

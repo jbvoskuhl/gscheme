@@ -372,6 +372,128 @@ func TestReadStringAlarmBackspace(t *testing.T) {
 	}
 }
 
+func TestReadBinaryNumber(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"#b1010", int64(10)},
+		{"#b0", int64(0)},
+		{"#b11111111", int64(255)},
+		{"#b-101", int64(-5)},
+		{"#B1010", int64(10)},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %v (%T), got %v (%T)", tt.input, tt.expected, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadOctalNumber(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"#o17", int64(15)},
+		{"#o0", int64(0)},
+		{"#o777", int64(511)},
+		{"#O17", int64(15)},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %v (%T), got %v (%T)", tt.input, tt.expected, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadHexNumber(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"#xff", int64(255)},
+		{"#xFF", int64(255)},
+		{"#x0", int64(0)},
+		{"#xDEAD", int64(0xDEAD)},
+		{"#X1a", int64(26)},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %v (%T), got %v (%T)", tt.input, tt.expected, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadTrueFalse(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"#true", true},
+		{"#false", false},
+		{"#TRUE", true},
+		{"#FALSE", false},
+		{"#t", true},
+		{"#f", false},
+	}
+	for _, tt := range tests {
+		result := NewInputPortFromString(tt.input).Read()
+		if result != tt.expected {
+			t.Errorf("Input %s: expected %v, got %v (%T)", tt.input, tt.expected, result, result)
+		}
+	}
+}
+
+func TestReadDatumComment(t *testing.T) {
+	// #;42 hello => hello
+	result := NewInputPortFromString("#;42 hello").Read()
+	if result != Symbol("hello") {
+		t.Errorf("Expected symbol 'hello', got %v (%T)", result, result)
+	}
+	// #;(a b c) 99 => 99
+	result = NewInputPortFromString("#;(a b c) 99").Read()
+	if result != int64(99) {
+		t.Errorf("Expected 99, got %v (%T)", result, result)
+	}
+}
+
+func TestReadBlockComment(t *testing.T) {
+	// #| comment |# 99 => 99
+	result := NewInputPortFromString("#| comment |# 99").Read()
+	if result != int64(99) {
+		t.Errorf("Expected 99, got %v (%T)", result, result)
+	}
+	// Nested: #| outer #| inner |# still outer |# 42 => 42
+	result = NewInputPortFromString("#| outer #| inner |# still outer |# 42").Read()
+	if result != int64(42) {
+		t.Errorf("Expected 42, got %v (%T)", result, result)
+	}
+}
+
+func TestReadBytevectorLiteral(t *testing.T) {
+	result := NewInputPortFromString("#u8(1 2 3)").Read()
+	bv, ok := result.([]uint8)
+	if !ok {
+		t.Fatalf("Expected []uint8, got %v (%T)", result, result)
+	}
+	if len(bv) != 3 || bv[0] != 1 || bv[1] != 2 || bv[2] != 3 {
+		t.Errorf("Expected #u8(1 2 3), got %v", bv)
+	}
+	// Empty bytevector
+	result = NewInputPortFromString("#u8()").Read()
+	bv, ok = result.([]uint8)
+	if !ok {
+		t.Fatalf("Expected []uint8, got %v (%T)", result, result)
+	}
+	if len(bv) != 0 {
+		t.Errorf("Expected empty bytevector, got %v", bv)
+	}
+}
+
 func TestEvalParsedExpression(t *testing.T) {
 	s := New()
 	input := NewInputPortFromString("(+ 1 2)")

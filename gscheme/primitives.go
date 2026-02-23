@@ -62,6 +62,12 @@ const primitivesScheme = `
                 (append (map (lambda (b) (list 'set! (first b) (second b))) bindings)
                         body)))))
 
+;; letrec* is identical to letrec in gscheme (left-to-right evaluation)
+(define letrec* letrec)
+
+;; syntax-error is an alias for error per R7RS
+(define syntax-error error)
+
 ;;;;;;;;;;;;;;;; Quasiquote
 
 ;; quasiquote macro: backquote with unquote and unquote-splicing

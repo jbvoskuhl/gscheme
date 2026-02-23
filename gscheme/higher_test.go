@@ -530,6 +530,68 @@ func TestUnless(t *testing.T) {
 	}
 }
 
+func TestMapMultiList(t *testing.T) {
+	s := New()
+	// (map + '(1 2 3) '(10 20 30)) => (11 22 33)
+	result := evalScheme(s, `(map + '(1 2 3) '(10 20 30))`)
+	if Stringify(result) != "(11 22 33)" {
+		t.Errorf("Expected (11 22 33) but got: %v", Stringify(result))
+	}
+	// (map + '(1 2) '(10 20 30)) => (11 22) — stops at shortest
+	result = evalScheme(s, `(map + '(1 2) '(10 20 30))`)
+	if Stringify(result) != "(11 22)" {
+		t.Errorf("Expected (11 22) but got: %v", Stringify(result))
+	}
+}
+
+func TestForEachMultiList(t *testing.T) {
+	s := New()
+	// (let ((sum 0)) (for-each (lambda (x y) (set! sum (+ sum x y))) '(1 2) '(10 20)) sum) => 33
+	result := evalScheme(s, `(let ((sum 0)) (for-each (lambda (x y) (set! sum (+ sum x y))) '(1 2) '(10 20)) sum)`)
+	if result != int64(33) {
+		t.Errorf("Expected 33 but got: %v", result)
+	}
+}
+
+func TestApplyVariadic(t *testing.T) {
+	s := New()
+	// (apply + 1 2 '(3 4)) => 10
+	result := evalScheme(s, `(apply + 1 2 '(3 4))`)
+	if result != int64(10) {
+		t.Errorf("Expected 10 but got: %v", result)
+	}
+	// (apply + '(1 2 3)) => 6 — original form still works
+	result = evalScheme(s, `(apply + '(1 2 3))`)
+	if result != int64(6) {
+		t.Errorf("Expected 6 but got: %v", result)
+	}
+}
+
+func TestInteractionEnvironment(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(eval '(+ 1 2) (interaction-environment))`)
+	if result != int64(3) {
+		t.Errorf("Expected 3 but got: %v", result)
+	}
+}
+
+func TestLetrecStar(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(letrec* ((x 1) (y (+ x 1))) y)`)
+	if result != int64(2) {
+		t.Errorf("Expected 2 but got: %v", result)
+	}
+}
+
+func TestSyntaxError(t *testing.T) {
+	s := New()
+	// syntax-error is aliased to error; error stringifies its first arg
+	result := evalScheme(s, `(guard (e (#t (error-object? e))) (syntax-error "bad syntax"))`)
+	if result != true {
+		t.Errorf("Expected #t but got: %v", result)
+	}
+}
+
 func TestDelayForce(t *testing.T) {
 	// Basic delay/force
 	result := eval("(force (delay (+ 1 2)))")

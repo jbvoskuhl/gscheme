@@ -37,10 +37,10 @@ func (p *higherOrderPrimitive) Apply(interpreter Scheme, args Pair, environment 
 
 // installHigherOrderPrimitives adds primitives that need interpreter access.
 func installHigherOrderPrimitives(environment Environment) {
-	environment.DefineName(NewHigherOrderPrimitive("map", 2, 2, primitiveMap))
-	environment.DefineName(NewHigherOrderPrimitive("apply", 2, 2, primitiveApply))
+	environment.DefineName(NewHigherOrderPrimitive("map", 2, maxArgs, primitiveMap))
+	environment.DefineName(NewHigherOrderPrimitive("apply", 2, maxArgs, primitiveApply))
 	environment.DefineName(NewHigherOrderPrimitive("eval", 1, 2, primitiveEval))
-	environment.DefineName(NewHigherOrderPrimitive("for-each", 2, 2, primitiveForEach))
+	environment.DefineName(NewHigherOrderPrimitive("for-each", 2, maxArgs, primitiveForEach))
 	environment.DefineName(NewHigherOrderPrimitive("member", 2, 3, primitiveMember))
 	environment.DefineName(NewPrimitive("memq", 2, 2, primitiveMemq))
 	environment.DefineName(NewPrimitive("memv", 2, 2, primitiveMemv))
@@ -51,31 +51,54 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("raise", 1, 1, primitiveRaise))
 	environment.DefineName(NewPrimitive("error-object-message", 1, 1, primitiveErrorObjectMessage))
 	environment.DefineName(NewPrimitive("error-object-irritants", 1, 1, primitiveErrorObjectIrritants))
+	environment.DefineName(NewHigherOrderPrimitive("interaction-environment", 0, 0,
+		func(s Scheme, args Pair, env Environment) interface{} {
+			return s.Environment()
+		}))
 }
 
-// primitiveMap applies a procedure to each element of a list.
+// primitiveMap applies a procedure to corresponding elements of one or more lists.
 func primitiveMap(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("map: first argument must be a procedure", List(First(args)))
 	}
-	list := Second(args)
-	if list == nil {
-		return nil
+	// Collect list cursors from all args after proc
+	rest := RestPair(args)
+	var cursors []interface{}
+	for rest != nil {
+		cursors = append(cursors, First(rest))
+		rest = RestPair(rest)
 	}
-	listPair, ok := list.(Pair)
-	if !ok {
-		return Err("map: second argument must be a list", List(list))
+	// Check if any cursor is already nil
+	for _, c := range cursors {
+		if c == nil {
+			return nil
+		}
 	}
-
 	var result Pair
 	var tail Pair
-	for listPair != nil {
-		// Apply the procedure to the current element
-		// Quote the element since Apply will try to evaluate it
-		elem := First(listPair)
-		quotedArg := List(List(Symbol("quote"), elem))
-		mapped := proc.Apply(interpreter, quotedArg, environment)
+	for {
+		// Build quoted arg list from First() of each cursor
+		var quotedArgs Pair
+		var qTail Pair
+		for i, c := range cursors {
+			listPair, ok := c.(Pair)
+			if !ok {
+				return Err("map: argument must be a list", List(c))
+			}
+			quoted := List(Symbol("quote"), First(listPair))
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				qTail = quotedArgs
+			} else {
+				qTail.SetRest(newPair)
+				qTail = newPair
+			}
+			cursors[i] = listPair.Rest()
+		}
+		mapped := proc.Apply(interpreter, quotedArgs, environment)
 		newPair := NewPair(mapped, nil)
 		if result == nil {
 			result = newPair
@@ -84,22 +107,46 @@ func primitiveMap(interpreter Scheme, args Pair, environment Environment) interf
 			tail.SetRest(newPair)
 			tail = newPair
 		}
-		listPair = RestPair(listPair)
+		// Stop when any cursor is nil
+		done := false
+		for _, c := range cursors {
+			if c == nil {
+				done = true
+				break
+			}
+		}
+		if done {
+			break
+		}
 	}
 	return result
 }
 
-// primitiveApply applies a procedure to a list of arguments.
+// primitiveApply applies a procedure to arguments. The last argument must be a list;
+// preceding arguments are prepended: (apply + 1 2 '(3 4)) applies + to (1 2 3 4).
 func primitiveApply(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("apply: first argument must be a procedure", List(First(args)))
 	}
-	argList := Second(args)
+	// Collect all args after proc
+	rest := RestPair(args)
+	var allArgs []interface{}
+	for rest != nil {
+		allArgs = append(allArgs, First(rest))
+		rest = RestPair(rest)
+	}
+	// Last arg is the list tail; preceding args are prepended
+	lastArg := allArgs[len(allArgs)-1]
+	// Build the combined arg list: prepend individual args, then the final list
+	var combined interface{} = lastArg
+	for i := len(allArgs) - 2; i >= 0; i-- {
+		combined = Cons(allArgs[i], combined)
+	}
 	// Quote each argument since Apply will try to evaluate them
 	var quotedArgs Pair
 	var tail Pair
-	for argPair, ok := argList.(Pair); ok; argPair, ok = Rest(argPair).(Pair) {
+	for argPair, ok := combined.(Pair); ok; argPair, ok = Rest(argPair).(Pair) {
 		quoted := List(Symbol("quote"), First(argPair))
 		newPair := NewPair(quoted, nil)
 		if quotedArgs == nil {
@@ -125,25 +172,57 @@ func primitiveEval(interpreter Scheme, args Pair, environment Environment) inter
 	return interpreter.Eval(expr, env)
 }
 
-// primitiveForEach applies a procedure to each element of a list for side effects, returns nil.
+// primitiveForEach applies a procedure to corresponding elements of one or more lists for side effects.
 func primitiveForEach(interpreter Scheme, args Pair, environment Environment) interface{} {
 	proc, ok := First(args).(Applyer)
 	if !ok {
 		return Err("for-each: first argument must be a procedure", List(First(args)))
 	}
-	list := Second(args)
-	if list == nil {
-		return nil
+	// Collect list cursors from all args after proc
+	rest := RestPair(args)
+	var cursors []interface{}
+	for rest != nil {
+		cursors = append(cursors, First(rest))
+		rest = RestPair(rest)
 	}
-	listPair, ok := list.(Pair)
-	if !ok {
-		return Err("for-each: second argument must be a list", List(list))
+	// Check if any cursor is already nil
+	for _, c := range cursors {
+		if c == nil {
+			return nil
+		}
 	}
-	for listPair != nil {
-		elem := First(listPair)
-		quotedArg := List(List(Symbol("quote"), elem))
-		proc.Apply(interpreter, quotedArg, environment)
-		listPair = RestPair(listPair)
+	for {
+		// Build quoted arg list from First() of each cursor
+		var quotedArgs Pair
+		var qTail Pair
+		for i, c := range cursors {
+			listPair, ok := c.(Pair)
+			if !ok {
+				return Err("for-each: argument must be a list", List(c))
+			}
+			quoted := List(Symbol("quote"), First(listPair))
+			newPair := NewPair(quoted, nil)
+			if quotedArgs == nil {
+				quotedArgs = newPair
+				qTail = quotedArgs
+			} else {
+				qTail.SetRest(newPair)
+				qTail = newPair
+			}
+			cursors[i] = listPair.Rest()
+		}
+		proc.Apply(interpreter, quotedArgs, environment)
+		// Stop when any cursor is nil
+		done := false
+		for _, c := range cursors {
+			if c == nil {
+				done = true
+				break
+			}
+		}
+		if done {
+			break
+		}
 	}
 	return nil
 }

@@ -45,6 +45,7 @@ func New() Scheme {
 	installStringPrimitives(result.environment)
 	installVectorPrimitives(result.environment)
 	installIOPrimitives(result.environment, result)
+	installSystemPrimitives(result.environment, result)
 	result.loadPrimitivesScheme()
 	return result
 }

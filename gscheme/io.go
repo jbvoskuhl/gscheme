@@ -370,6 +370,24 @@ func installIOPrimitives(environment Environment, interpreter Scheme) {
 		return thunk.Apply(s, nil, env)
 	}))
 
+	// call-with-port: call proc with port, close port on return
+	environment.DefineName(NewHigherOrderPrimitive("call-with-port", 2, 2, func(s Scheme, args Pair, env Environment) interface{} {
+		port := First(args)
+		proc, ok := Second(args).(Applyer)
+		if !ok {
+			return Err("call-with-port: second argument must be a procedure", List(Second(args)))
+		}
+		quotedArg := List(List(Symbol("quote"), port))
+		result := proc.Apply(s, quotedArg, env)
+		// Close the port
+		if ip, ok := port.(*InputPort); ok {
+			ip.Close()
+		} else if op, ok := port.(*OutputPort); ok {
+			op.Close()
+		}
+		return result
+	}))
+
 	// with-output-to-file: redirect current-output-port to file for duration of thunk
 	environment.DefineName(NewHigherOrderPrimitive("with-output-to-file", 2, 2, func(s Scheme, args Pair, env Environment) interface{} {
 		filename := stringConstraint(First(args))

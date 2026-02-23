@@ -355,8 +355,48 @@ func (p *InputPort) nextToken() interface{} {
 		}
 		switch r {
 		case 't', 'T':
+			// Check for #true / #TRUE etc.
+			next := p.peekCh()
+			if next != -1 && unicode.IsLetter(next) {
+				p.buff.Reset()
+				p.buff.WriteRune(r)
+				for {
+					next = p.peekCh()
+					if next == -1 || !unicode.IsLetter(next) {
+						break
+					}
+					p.popChar()
+					p.buff.WriteRune(next)
+				}
+				word := strings.ToLower(p.buff.String())
+				if word == "true" {
+					return true
+				}
+				warn("Unknown # literal: #" + p.buff.String())
+				return true
+			}
 			return true
 		case 'f', 'F':
+			// Check for #false / #FALSE etc.
+			next := p.peekCh()
+			if next != -1 && unicode.IsLetter(next) {
+				p.buff.Reset()
+				p.buff.WriteRune(r)
+				for {
+					next = p.peekCh()
+					if next == -1 || !unicode.IsLetter(next) {
+						break
+					}
+					p.popChar()
+					p.buff.WriteRune(next)
+				}
+				word := strings.ToLower(p.buff.String())
+				if word == "false" {
+					return false
+				}
+				warn("Unknown # literal: #" + p.buff.String())
+				return false
+			}
 			return false
 		case '(':
 			p.pushChar('(')
@@ -397,12 +437,74 @@ func (p *InputPort) nextToken() interface{} {
 				return r
 			}
 			return r
+		case ';':
+			// Datum comment: read and discard one datum, then continue
+			p.Read()
+			return p.nextToken()
+		case '|':
+			// Block comment: #|...|#, supports nesting
+			depth := 1
+			var prev rune
+			for depth > 0 {
+				c, _, err := p.in.ReadRune()
+				if err != nil {
+					warn("EOF inside block comment.")
+					return EOF
+				}
+				if prev == '#' && c == '|' {
+					depth++
+					prev = 0
+					continue
+				}
+				if prev == '|' && c == '#' {
+					depth--
+					prev = 0
+					continue
+				}
+				prev = c
+			}
+			return p.nextToken()
+		case 'u':
+			// #u8(...) bytevector literal
+			next, _, err := p.in.ReadRune()
+			if err != nil || next != '8' {
+				warn("#u not followed by 8, ignored.")
+				return p.nextToken()
+			}
+			next, _, err = p.in.ReadRune()
+			if err != nil || next != '(' {
+				warn("#u8 not followed by (, ignored.")
+				return p.nextToken()
+			}
+			// Read the list of byte values
+			list := p.readTail(false)
+			// Convert list elements to []uint8
+			var bytes []uint8
+			cursor := list
+			for cursor != nil {
+				if cursorPair, ok := cursor.(Pair); ok {
+					bytes = append(bytes, byteConstraint(First(cursorPair)))
+					cursor = cursorPair.Rest()
+				} else {
+					break
+				}
+			}
+			if bytes == nil {
+				return []uint8{}
+			}
+			return bytes
 		case 'e', 'i', 'd':
 			// Exact/inexact/decimal prefix - ignore and read next token
 			return p.nextToken()
-		case 'b', 'o', 'x':
-			warn("#" + string(r) + " not implemented, ignored.")
-			return p.nextToken()
+		case 'b', 'B':
+			// Binary number prefix
+			return p.readRadixNumber(2)
+		case 'o', 'O':
+			// Octal number prefix
+			return p.readRadixNumber(8)
+		case 'x', 'X':
+			// Hexadecimal number prefix
+			return p.readRadixNumber(16)
 		default:
 			warn("#" + string(r) + " not recognized, ignored.")
 			return p.nextToken()
@@ -440,6 +542,41 @@ func (p *InputPort) nextToken() interface{} {
 		// R7RS: identifiers are case-insensitive, fold to lowercase.
 		return Symbol(strings.ToLower(s))
 	}
+}
+
+// readRadixNumber reads a number in the given base (2, 8, or 16) after the #b/#o/#x prefix.
+func (p *InputPort) readRadixNumber(base int) interface{} {
+	p.buff.Reset()
+	// Handle optional sign
+	next := p.peekCh()
+	if next == '+' || next == '-' {
+		p.popChar()
+		p.buff.WriteRune(next)
+	}
+	// Read remaining token characters
+	for {
+		next = p.peekCh()
+		if next == -1 || unicode.IsSpace(next) || next == '(' || next == ')' ||
+			next == '\'' || next == ';' || next == '"' || next == ',' || next == '`' {
+			break
+		}
+		p.popChar()
+		p.buff.WriteRune(next)
+	}
+	numStr := p.buff.String()
+	if numStr == "" {
+		warn("Empty number after radix prefix.")
+		return p.nextToken()
+	}
+	// Try int64 first
+	if n, err := strconv.ParseInt(numStr, base, 64); err == nil {
+		return n
+	}
+	// Fall back to big.Int for overflow
+	if bi, ok := new(big.Int).SetString(numStr, base); ok {
+		return SimplifyBigInt(bi)
+	}
+	return ReadErr("Invalid number literal with radix prefix: "+numStr, nil)
 }
 
 // listToVector converts a list to a vector (Go slice).

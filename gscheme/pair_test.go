@@ -239,25 +239,40 @@ func TestPrimitiveListCopy(t *testing.T) {
 }
 
 func TestPrimitiveAppend(t *testing.T) {
-	interpreter := New()
-	expression := List(Symbol("append"))
-	result := interpreter.EvalGlobal(expression)
+	s := New()
+	// (append) => ()
+	result := evalScheme(s, `(append)`)
 	if result != nil {
-		t.Errorf("Expected (append) to evaluate to ().")
+		t.Errorf("Expected (append) to evaluate to (), got: %v", result)
 	}
-	expression = List(Symbol("append"), nil)
-	result = interpreter.EvalGlobal(expression)
+	// (append '()) => ()
+	result = evalScheme(s, `(append '())`)
 	if result != nil {
-		t.Errorf("Expected (append ()) to evaluate to ().")
+		t.Errorf("Expected (append '()) to evaluate to (), got: %v", result)
 	}
-	expression = List(Symbol("append"), List(Symbol("quote"), 1, 2), List(Symbol("quote"), 3, 4))
-	result = interpreter.EvalGlobal(expression)
-	if reflect.DeepEqual(result, List(1, 2, 3, 4)) {
-		t.Errorf("Expected (append '(1 2) '(3 4)) to evaluate to (1 2 3 4).")
+	// (append '(1 2) '(3 4)) => (1 2 3 4)
+	result = evalScheme(s, `(append '(1 2) '(3 4))`)
+	if Stringify(result) != "(1 2 3 4)" {
+		t.Errorf("Expected (1 2 3 4) but got: %v", Stringify(result))
 	}
-	expression = List(Symbol("append"), List(Symbol("quote"), 1, 2), 3)
-	result = interpreter.EvalGlobal(expression)
-	if reflect.DeepEqual(result, Cons(1, Cons(2, 3))) {
-		t.Errorf("Expected (append '(1 2) 3) to evaluate to (1 2 . 3.")
+	// (append '(1 2) '(3 4) '(5 6)) => (1 2 3 4 5 6)
+	result = evalScheme(s, `(append '(1 2) '(3 4) '(5 6))`)
+	if Stringify(result) != "(1 2 3 4 5 6)" {
+		t.Errorf("Expected (1 2 3 4 5 6) but got: %v", Stringify(result))
+	}
+	// (append '(a) '(b) 'c) => (a b . c) — improper tail
+	result = evalScheme(s, `(append '(a) '(b) 'c)`)
+	if Stringify(result) != "(a b . c)" {
+		t.Errorf("Expected (a b . c) but got: %v", Stringify(result))
+	}
+	// (append '() '(1)) => (1)
+	result = evalScheme(s, `(append '() '(1))`)
+	if Stringify(result) != "(1)" {
+		t.Errorf("Expected (1) but got: %v", Stringify(result))
+	}
+	// (append 'x) => x — single non-list arg returned as-is
+	result = evalScheme(s, `(append 'x)`)
+	if result != Symbol("x") {
+		t.Errorf("Expected x but got: %v", result)
 	}
 }
