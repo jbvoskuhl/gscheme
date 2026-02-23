@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -50,6 +51,24 @@ func (rl *Readline) ReadLine(prompt string) (string, error) {
 		if pos < len(line) {
 			writeStr("\x1b[" + strconv.Itoa(len(line)-pos) + "D")
 		}
+	}
+
+	// flashMatch briefly highlights the matching ( when ) is typed.
+	flashMatch := func() {
+		matchPos := findMatchingParen(line, pos-1)
+		if matchPos < 0 {
+			return
+		}
+		// Redraw with the matching paren in reverse video
+		writeStr("\r" + prompt)
+		writeStr(string(line[:matchPos]))
+		writeStr("\x1b[7m" + string(line[matchPos]) + "\x1b[0m")
+		writeStr(string(line[matchPos+1:]) + "\x1b[K")
+		if pos < len(line) {
+			writeStr("\x1b[" + strconv.Itoa(len(line)-pos) + "D")
+		}
+		time.Sleep(200 * time.Millisecond)
+		redraw()
 	}
 
 	writeStr(prompt)
@@ -163,7 +182,37 @@ func (rl *Readline) ReadLine(prompt string) (string, error) {
 				}
 				pos++
 				redraw()
+				if ch == ')' {
+					flashMatch()
+				}
 			}
 		}
 	}
+}
+
+// findMatchingParen scans backwards from closePos to find the matching '('.
+// It respects nesting and skips characters inside string literals.
+// Returns the index of the matching '(' or -1 if not found.
+func findMatchingParen(line []rune, closePos int) int {
+	depth := 1
+	inString := false
+	for i := closePos - 1; i >= 0; i-- {
+		ch := line[i]
+		if ch == '"' && (i == 0 || line[i-1] != '\\') {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		if ch == ')' {
+			depth++
+		} else if ch == '(' {
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
 }

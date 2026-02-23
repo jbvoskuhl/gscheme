@@ -380,6 +380,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			}
 
 			// Not a special form — evaluate the operator
+			fnExpr := fn
 			fn = s.Eval(fn, environment)
 
 			// Macro: expand and loop
@@ -399,7 +400,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			// Primitive or other applyer: call and return
 			p, ok := fn.(Applyer)
 			if !ok {
-				return Err("Bad Procedure: ", List(fn))
+				return Err("Bad Procedure: ", List(fnExpr))
 			}
 			return p.Apply(s, args, environment)
 
