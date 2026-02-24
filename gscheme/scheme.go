@@ -243,7 +243,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 				result = err
 				return
 			}
-			panic(err)
+			panic(recovered)
 		}
 	}()
 	// Loop so we can implement tail call optimization. In tail positions we

@@ -51,6 +51,8 @@ func installHigherOrderPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("raise", 1, 1, primitiveRaise))
 	environment.DefineName(NewPrimitive("error-object-message", 1, 1, primitiveErrorObjectMessage))
 	environment.DefineName(NewPrimitive("error-object-irritants", 1, 1, primitiveErrorObjectIrritants))
+	environment.DefineName(NewHigherOrderPrimitive("call-with-current-continuation", 1, 1, primitiveCallCC))
+	environment.DefineName(NewHigherOrderPrimitive("call/cc", 1, 1, primitiveCallCC))
 	environment.DefineName(NewHigherOrderPrimitive("interaction-environment", 0, 0,
 		func(s Scheme, args Pair, env Environment) interface{} {
 			return s.Environment()
