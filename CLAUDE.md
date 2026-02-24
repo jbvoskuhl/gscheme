@@ -4,27 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-GScheme is a dual-language Scheme interpreter implementation:
-- **gscheme** (Go): A lightweight, embeddable Scheme interpreter for Go programs
-- **jscheme** (Java): A full Scheme interpreter based on Peter Norvig's JScheme
+GScheme is a lightweight, embeddable Scheme interpreter for Go programs.
 
 ## Build Commands
 
-### Go (gscheme)
 ```bash
 go test ./gscheme           # Run all tests
 go test ./gscheme -run TestName   # Run a specific test
 ```
 
-### Java (jscheme)
-```bash
-bazel build //jscheme:jscheme   # Build the interpreter
-bazel run //jscheme:jscheme     # Run the REPL
-```
-
 ## Architecture
 
-### Go Implementation (`gscheme/`)
+### Architecture (`gscheme/`)
 
 The interpreter follows a standard Scheme architecture with interface-based design:
 
@@ -46,18 +37,7 @@ Key patterns:
 - Type constraints: `symbolConstraint()`, `characterConstraint()`, etc. for argument validation
 - Variadic math operators use `reduce(binary, unary)` pattern
 
-### Java Implementation (`jscheme/`)
-
-Based on Peter Norvig's JScheme (http://www.norvig.com/jscheme.html):
-
-- **Scheme.java**: Main interpreter with read-eval-write loop
-- **Primitive.java**: 150+ built-in primitives with ID-based dispatch
-- **SchemePrimitives.java**: Scheme-level macros as embedded code strings
-- **primitives.scm**: Standard macros (quasiquote, let, let*, letrec, case, do, delay)
-
-The Java implementation includes features not yet in Go: continuations, macros, vectors, Java interop.
-
-## Creating New Primitives (Go)
+## Creating New Primitives
 
 Primitives are installed in their respective `install*Primitives()` functions. Example pattern:
 

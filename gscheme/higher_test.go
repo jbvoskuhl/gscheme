@@ -617,3 +617,72 @@ func TestDelayForce(t *testing.T) {
 		t.Errorf("Expected #t but got: %v", result)
 	}
 }
+
+func TestMacroExpand(t *testing.T) {
+	s := New()
+	// 'when' is defined as a macro; expanding it should produce an if expression
+	result := evalScheme(s, `(macro-expand '(when #t 42))`)
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected a pair from macro-expand, got: %v", result)
+	}
+	if First(pair) != Symbol("if") {
+		t.Errorf("Expected car of expansion to be 'if', got: %v", First(pair))
+	}
+}
+
+func TestMacroExpandNonMacro(t *testing.T) {
+	s := New()
+	// Expanding a non-macro expression returns it unchanged
+	result := evalScheme(s, `(macro-expand '(+ 1 2))`)
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected a pair, got: %v", result)
+	}
+	if First(pair) != Symbol("+") {
+		t.Errorf("Expected (+ 1 2) unchanged, got car: %v", First(pair))
+	}
+	if Second(pair) != int64(1) {
+		t.Errorf("Expected second element 1, got: %v", Second(pair))
+	}
+}
+
+func TestTimeCallResult(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(car (time-call (lambda () (+ 1 2))))`)
+	if result != int64(3) {
+		t.Errorf("Expected 3 from time-call thunk, got: %v", result)
+	}
+}
+
+func TestTimeCallIsPair(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(time-call (lambda () 42))`)
+	pair, ok := result.(Pair)
+	if !ok {
+		t.Fatalf("Expected time-call to return a pair, got: %v", result)
+	}
+	if First(pair) != int64(42) {
+		t.Errorf("Expected car to be 42, got: %v", First(pair))
+	}
+	stats := Second(pair)
+	if _, ok := stats.(Pair); !ok {
+		t.Errorf("Expected cadr to be a stats list, got: %v", stats)
+	}
+}
+
+func TestTimeCallWithCount(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(car (time-call (lambda () 42) 10))`)
+	if result != int64(42) {
+		t.Errorf("Expected 42 from time-call with n=10, got: %v", result)
+	}
+}
+
+func TestTimeCallNonProcedure(t *testing.T) {
+	s := New()
+	result := evalScheme(s, `(time-call 42)`)
+	if _, ok := result.(Error); !ok {
+		t.Errorf("Expected error for non-procedure argument, got: %v", result)
+	}
+}

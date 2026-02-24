@@ -1,6 +1,11 @@
 package gscheme
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+	"runtime"
+	"time"
+)
 
 // HigherOrderPrimitive is a primitive that needs access to the interpreter for evaluation.
 type HigherOrderPrimitive interface {
@@ -57,6 +62,8 @@ func installHigherOrderPrimitives(environment Environment) {
 		func(s Scheme, args Pair, env Environment) interface{} {
 			return s.Environment()
 		}))
+	environment.DefineName(NewHigherOrderPrimitive("macro-expand", 1, 1, primitiveMacroExpand))
+	environment.DefineName(NewHigherOrderPrimitive("time-call", 1, 2, primitiveTimeCall))
 }
 
 // primitiveMap applies a procedure to corresponding elements of one or more lists.
@@ -450,4 +457,64 @@ func primitiveRaise(args Pair) interface{} {
 		panic(err)
 	}
 	panic(&raisedError{value})
+}
+
+// primitiveMacroExpand expands a macro call without evaluating the result.
+// Usage: (macro-expand '(when #t 42)) — the expression must be quoted.
+func primitiveMacroExpand(interpreter Scheme, args Pair, environment Environment) interface{} {
+	expr := First(args)
+	exprPair, ok := expr.(Pair)
+	if !ok {
+		return expr
+	}
+	sym, ok := First(exprPair).(Symbol)
+	if !ok {
+		return expr
+	}
+	val := interpreter.Eval(sym, environment)
+	m, ok := val.(Macro)
+	if !ok {
+		return expr
+	}
+	return m.Expand(interpreter, RestPair(exprPair), environment)
+}
+
+// primitiveTimeCall times the execution of a zero-argument thunk.
+// Usage: (time-call thunk [n-times])
+// Returns (result ((time-ms "elapsed") (mem-bytes "allocated")))
+func primitiveTimeCall(interpreter Scheme, args Pair, environment Environment) interface{} {
+	proc, ok := First(args).(Applyer)
+	if !ok {
+		return Err("time-call: first argument must be a procedure", List(First(args)))
+	}
+	n := int64(1)
+	if Second(args) != nil {
+		switch v := Second(args).(type) {
+		case int64:
+			n = v
+		case float64:
+			n = int64(v)
+		default:
+			return Err("time-call: second argument must be a number", List(Second(args)))
+		}
+	}
+
+	var memBefore runtime.MemStats
+	runtime.ReadMemStats(&memBefore)
+
+	start := time.Now()
+	var result interface{}
+	for i := int64(0); i < n; i++ {
+		result = proc.Apply(interpreter, nil, environment)
+	}
+	elapsed := time.Since(start)
+
+	var memAfter runtime.MemStats
+	runtime.ReadMemStats(&memAfter)
+	allocBytes := memAfter.TotalAlloc - memBefore.TotalAlloc
+
+	timeEntry := List(Symbol("time-ms"), fmt.Sprintf("%.3f", float64(elapsed.Microseconds())/1000.0))
+	memEntry := List(Symbol("mem-bytes"), fmt.Sprintf("%d", allocBytes))
+	stats := List(timeEntry, memEntry)
+	return Cons(result, Cons(stats, nil))
 }
