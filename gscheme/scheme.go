@@ -253,7 +253,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 		case Symbol:
 			variable, ok := environment.Lookup(value)
 			if !ok {
-				return Err("Unbound variable: ", List(variable))
+				return Err("Unbound variable: ", List(value))
 			}
 			return variable
 		case Pair:

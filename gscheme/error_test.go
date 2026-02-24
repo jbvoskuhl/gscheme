@@ -10,11 +10,11 @@ func TestNewError(t *testing.T) {
 	if e.GetMessage() != "message" {
 		t.Errorf("Error message was expected to be 'message' and instead was: %v.", e.GetMessage())
 	}
-	if e.String() != "message" {
-		t.Errorf("Error as string was expected to be 'message' and instead was: %v.", e.String())
+	if e.String() != "message 1 2 3" {
+		t.Errorf("Error as string was expected to be 'message 1 2 3' and instead was: %v.", e.String())
 	}
-	if e.Error() != "message" {
-		t.Errorf("Scheme error as error was expected to be 'message' and instead was: %v.", e.Error())
+	if e.Error() != "message 1 2 3" {
+		t.Errorf("Scheme error as error was expected to be 'message 1 2 3' and instead was: %v.", e.Error())
 	}
 	if !reflect.DeepEqual(e.GetIrritants(), List(1, 2, 3)) {
 		t.Errorf("Error irritants were expected to be (1 2 3) and instead was: %v.", e.GetIrritants())

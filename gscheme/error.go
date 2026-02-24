@@ -53,14 +53,29 @@ func (e schemeError) GetIrritants() Pair {
 	return e.irritants
 }
 
-// Convert the error to a string including the message and irritants.
+// String returns the error message followed by any irritant values.
 func (e schemeError) String() string {
-	return e.message
+	if e.irritants == nil {
+		return e.message
+	}
+	s := e.message
+	for cursor := interface{}(e.irritants); cursor != nil; {
+		if p, ok := cursor.(Pair); ok {
+			if s != "" && s[len(s)-1] != ' ' {
+				s += " "
+			}
+			s += Stringify(First(p))
+			cursor = Rest(p)
+		} else {
+			break
+		}
+	}
+	return s
 }
 
-// Convert the error to a string including the message and irritants.
+// Error implements the error interface.
 func (e schemeError) Error() string {
-	return e.message
+	return e.String()
 }
 
 // IsReadError returns true if this error is a read error.
