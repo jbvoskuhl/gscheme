@@ -223,10 +223,9 @@ func (s *scheme) setCurrentOutputPort(p *OutputPort) {
 }
 
 // Eval will evaluate a single Scheme expression with respect to a given environment and return the result.
-// Special forms are handled inline in the for loop to enable tail call optimization:
-// in tail positions we reassign x and continue the loop rather than recursively calling Eval.
+// It establishes an error boundary: any Scheme error (panic with Error value) is caught and returned.
+// Internal recursive calls use eval (no error boundary) for performance.
 func (s *scheme) Eval(x interface{}, environment Environment) (result interface{}) {
-	// If there was a scheme error raise'd by this eval, return it here.
 	defer func() {
 		recovered := recover()
 		if recovered != nil {
@@ -238,8 +237,13 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 			panic(recovered)
 		}
 	}()
-	// Loop so we can implement tail call optimization. In tail positions we
-	// reassign x (and possibly environment) and continue rather than returning eval(...).
+	return s.eval(x, environment)
+}
+
+// eval is the core evaluator without an error boundary. Panics propagate to the nearest Eval.
+// Special forms are handled inline in the for loop to enable tail call optimization:
+// in tail positions we reassign x and continue the loop rather than recursively calling eval.
+func (s *scheme) eval(x interface{}, environment Environment) interface{} {
 	for {
 		switch value := x.(type) {
 		case Symbol:
@@ -261,7 +265,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 				case "begin":
 					// Evaluate all but last expression eagerly; tail-call the last
 					for args != nil && Rest(args) != nil {
-						s.Eval(First(args), environment)
+						s.eval(First(args), environment)
 						args = RestPair(args)
 					}
 					if args == nil {
@@ -271,7 +275,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 					continue
 
 				case "if":
-					test := s.Eval(First(args), environment)
+					test := s.eval(First(args), environment)
 					if Truth(test) {
 						x = Second(args)
 					} else {
@@ -339,7 +343,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 					if !ok {
 						return Err("define: expected symbol", List(first))
 					}
-					val := s.Eval(Second(args), environment)
+					val := s.eval(Second(args), environment)
 					if proc, ok := val.(Procedure); ok && proc.Name() == "" {
 						proc.SetName(name)
 					}
@@ -350,7 +354,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 					if !ok {
 						return Err("set!: expected symbol", List(First(args)))
 					}
-					val := s.Eval(Second(args), environment)
+					val := s.eval(Second(args), environment)
 					if !environment.Set(name, val) {
 						return Err("set!: unbound variable", List(name))
 					}
@@ -370,7 +374,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 
 			// Not a special form — evaluate the operator
 			fnExpr := fn
-			fn = s.Eval(fn, environment)
+			fn = s.eval(fn, environment)
 
 			// Macro: expand and loop
 			if m, ok := fn.(Macro); ok {
@@ -418,7 +422,7 @@ func (s *scheme) reduceCond(clauses Pair, environment Environment) interface{} {
 		if test == Symbol("else") {
 			result = true
 		} else {
-			result = s.Eval(test, environment)
+			result = s.eval(test, environment)
 		}
 
 		if Truth(result) {
@@ -442,13 +446,19 @@ func (s *scheme) reduceCond(clauses Pair, environment Environment) interface{} {
 	return false
 }
 
-// EvalList evaluates each expression in turn and returns the last one.
+// EvalList evaluates each expression in a list and returns a new list of results.
 func (s *scheme) EvalList(list Pair, environment Environment) Pair {
 	if list == nil {
 		return nil
-	} else {
-		return NewPair(s.Eval(First(list), environment), s.EvalList(RestPair(list), environment))
 	}
+	head := NewPair(s.eval(First(list), environment), nil)
+	tail := head
+	for list = RestPair(list); list != nil; list = RestPair(list) {
+		p := NewPair(s.eval(First(list), environment), nil)
+		tail.SetRest(p)
+		tail = p
+	}
+	return head
 }
 
 func (s *scheme) EvalGlobal(x interface{}) interface{} {

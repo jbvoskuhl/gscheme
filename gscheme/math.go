@@ -165,13 +165,25 @@ func divide(args Pair) interface{} {
 
 // numCompare compares adjacent pairs of numbers using the given comparison function.
 // Returns true if all adjacent pairs satisfy the comparison, false otherwise.
+// Uses int64 fast path when both operands are int64, avoiding big.Rat allocation.
 // When both operands are exact (int64 or *big.Rat), comparison is done exactly via big.Rat.
-func numCompare(compare func(x, y float64) bool, ratCompare func(int) bool) func(Pair) interface{} {
+func numCompare(compare func(x, y float64) bool, ratCompare func(int) bool,
+	int64Compare func(x, y int64) bool) func(Pair) interface{} {
 	return func(args Pair) interface{} {
 		prev := First(args)
 		args = RestPair(args)
 		for args != nil {
 			cur := First(args)
+			if xInt, ok := prev.(int64); ok {
+				if yInt, ok := cur.(int64); ok {
+					if !int64Compare(xInt, yInt) {
+						return false
+					}
+					prev = cur
+					args = RestPair(args)
+					continue
+				}
+			}
 			if isExact(prev) && isExact(cur) {
 				if !ratCompare(ToRat(prev).Cmp(ToRat(cur))) {
 					return false
@@ -188,11 +200,11 @@ func numCompare(compare func(x, y float64) bool, ratCompare func(int) bool) func
 	}
 }
 
-var numEqual = numCompare(func(x, y float64) bool { return x == y }, func(c int) bool { return c == 0 })
-var numLessThan = numCompare(func(x, y float64) bool { return x < y }, func(c int) bool { return c < 0 })
-var numGreaterThan = numCompare(func(x, y float64) bool { return x > y }, func(c int) bool { return c > 0 })
-var numLessThanOrEqual = numCompare(func(x, y float64) bool { return x <= y }, func(c int) bool { return c <= 0 })
-var numGreaterThanOrEqual = numCompare(func(x, y float64) bool { return x >= y }, func(c int) bool { return c >= 0 })
+var numEqual = numCompare(func(x, y float64) bool { return x == y }, func(c int) bool { return c == 0 }, func(x, y int64) bool { return x == y })
+var numLessThan = numCompare(func(x, y float64) bool { return x < y }, func(c int) bool { return c < 0 }, func(x, y int64) bool { return x < y })
+var numGreaterThan = numCompare(func(x, y float64) bool { return x > y }, func(c int) bool { return c > 0 }, func(x, y int64) bool { return x > y })
+var numLessThanOrEqual = numCompare(func(x, y float64) bool { return x <= y }, func(c int) bool { return c <= 0 }, func(x, y int64) bool { return x <= y })
+var numGreaterThanOrEqual = numCompare(func(x, y float64) bool { return x >= y }, func(c int) bool { return c >= 0 }, func(x, y int64) bool { return x >= y })
 
 func primitiveAbs(args Pair) interface{} {
 	x := First(args)

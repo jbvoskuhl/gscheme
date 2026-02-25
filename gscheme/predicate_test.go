@@ -81,18 +81,7 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestNumberP(t *testing.T) {
-	scheme := New()
-	result := scheme.EvalGlobal(List(Symbol("number?"), float64(42)))
-	if result != true {
-		t.Errorf("Expected (number? 42) to be true but was: %v", result)
-	}
-
-	result = scheme.EvalGlobal(List(Symbol("number?"), Symbol("x")))
-	if result != false {
-		t.Errorf("Expected (number? 'x) to be false but was: %v", result)
-	}
-}
+// TestNumberP has been moved to testdata/scheme-tests.scm.
 
 func TestIntegerP(t *testing.T) {
 	scheme := New()
@@ -106,7 +95,7 @@ func TestIntegerP(t *testing.T) {
 		t.Errorf("Expected (integer? 3.14) to be false but was: %v", result)
 	}
 
-	result = scheme.EvalGlobal(List(Symbol("integer?"), Symbol("x")))
+	result = scheme.EvalGlobal(List(Symbol("integer?"), List(Symbol("quote"), Symbol("x"))))
 	if result != false {
 		t.Errorf("Expected (integer? 'x) to be false but was: %v", result)
 	}
@@ -379,7 +368,7 @@ func TestInexactP(t *testing.T) {
 	}
 
 	// Non-numbers are not inexact
-	result = scheme.EvalGlobal(List(Symbol("inexact?"), Symbol("x")))
+	result = scheme.EvalGlobal(List(Symbol("inexact?"), List(Symbol("quote"), Symbol("x"))))
 	if result != false {
 		t.Errorf("Expected (inexact? 'x) to be false but was: %v", result)
 	}

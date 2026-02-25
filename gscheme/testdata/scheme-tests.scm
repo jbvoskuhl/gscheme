@@ -322,6 +322,40 @@
   (test-assert "procedure? on primitive" (procedure? car))
   (test-assert "procedure? on lambda" (procedure? (lambda () 1))))
 
+;;;;;;;;;;;;;;;; number?
+
+(test-group "number?"
+  (test-eqv "float is number" #t (number? 42))
+  (test-eqv "symbol is not number" #f (number? 'x)))
+
+;;;;;;;;;;;;;;;; list?
+
+(test-group "list?"
+  (test-eqv "proper list" #t (list? '(1 2 3)))
+  (test-eqv "dotted pair" #f (list? (cons 1 2)))
+  (test-eqv "empty list" #t (list? '()))
+  (test-eqv "number" #f (list? 5))
+  ;; circular list
+  (define cycle (list 0 1 2 3))
+  (set-cdr! (cdddr cycle) cycle)
+  (test-eqv "circular list" #f (list? cycle)))
+
+;;;;;;;;;;;;;;;; complex?
+
+(test-group "complex?"
+  (test-eqv "real is complex" #t (complex? 42))
+  (test-eqv "float is complex" #t (complex? 3.14))
+  (test-eqv "complex is complex" #t (complex? 3+4i))
+  (test-eqv "symbol is not complex" #f (complex? 'x))
+  (test-eqv "string is not complex" #f (complex? "hello")))
+
+;;;;;;;;;;;;;;;; real?
+
+(test-group "real?"
+  (test-eqv "real is real" #t (real? 42))
+  (test-eqv "complex with zero imag is real" #t (real? 3+0i))
+  (test-eqv "complex with nonzero imag is not real" #f (real? 3+4i)))
+
 ;;;;;;;;;;;;;;;; with-exception-handler
 
 (test-group "with-exception-handler"

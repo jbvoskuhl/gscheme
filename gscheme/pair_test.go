@@ -100,45 +100,7 @@ func TestPrimitiveCxr(t *testing.T) {
 	}
 }
 
-func makeListCycle(length uint) (result Pair) {
-	result = NewPair(length, nil)
-	tail := result
-	for length > 0 {
-		length--
-		result = NewPair(length, result)
-	}
-	tail.SetRest(result)
-	return
-}
-
-func TestPrimitiveListP(t *testing.T) {
-	interpreter := New()
-	expression := List(Symbol("list?"), List(Symbol("quote"), List(1, 2, 3)))
-	result := interpreter.EvalGlobal(expression)
-	if result != true {
-		t.Errorf("Expected the expression (list? '(1 2 3)) to evaluate to #t.")
-	}
-	expression = List(Symbol("list?"), Cons(1, 2))
-	result = interpreter.EvalGlobal(expression)
-	if result != false {
-		t.Errorf("Expected the expression (list? (cons 1 2)) to evaluate to #f.")
-	}
-	expression = List(Symbol("list?"), nil)
-	result = interpreter.EvalGlobal(expression)
-	if result != true {
-		t.Errorf("Expected the expression (list? ()) to evaluate to #t.")
-	}
-	expression = List(Symbol("list?"), 5)
-	result = interpreter.EvalGlobal(expression)
-	if result != false {
-		t.Errorf("Expected the expression (list? 5) to evaluate to #f.")
-	}
-	expression = List(Symbol("list?"), List(Symbol("quote"), makeListCycle(3)))
-	result = interpreter.EvalGlobal(expression)
-	if result != false {
-		t.Errorf("Expected the expression (list? <huge-loop>) to evaluate to #f.")
-	}
-}
+// TestPrimitiveListP has been moved to testdata/scheme-tests.scm.
 
 func TestPrimitiveMakeList(t *testing.T) {
 	interpreter := New()

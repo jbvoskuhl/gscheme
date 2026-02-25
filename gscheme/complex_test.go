@@ -75,52 +75,9 @@ func TestStringifyComplex(t *testing.T) {
 	}
 }
 
-func TestComplexP(t *testing.T) {
-	scheme := New()
+// TestComplexP has been moved to testdata/scheme-tests.scm.
 
-	// Real numbers are complex
-	result := scheme.EvalGlobal(List(Symbol("complex?"), float64(42)))
-	if result != true {
-		t.Errorf("Expected (complex? 42) to be true but was: %v", result)
-	}
-
-	// Complex numbers are complex
-	scheme.Environment().Define(Symbol("c"), complex(3, 4))
-	result = scheme.EvalGlobal(List(Symbol("complex?"), Symbol("c")))
-	if result != true {
-		t.Errorf("Expected (complex? 3+4i) to be true but was: %v", result)
-	}
-
-	// Non-numbers are not complex
-	result = scheme.EvalGlobal(List(Symbol("complex?"), Symbol("x")))
-	if result != false {
-		t.Errorf("Expected (complex? 'x) to be false but was: %v", result)
-	}
-}
-
-func TestRealP(t *testing.T) {
-	scheme := New()
-
-	// Real numbers are real
-	result := scheme.EvalGlobal(List(Symbol("real?"), float64(42)))
-	if result != true {
-		t.Errorf("Expected (real? 42) to be true but was: %v", result)
-	}
-
-	// Complex with zero imaginary part is real
-	scheme.Environment().Define(Symbol("c"), complex(3, 0))
-	result = scheme.EvalGlobal(List(Symbol("real?"), Symbol("c")))
-	if result != true {
-		t.Errorf("Expected (real? 3+0i) to be true but was: %v", result)
-	}
-
-	// Complex with non-zero imaginary part is not real
-	scheme.Environment().Define(Symbol("c2"), complex(3, 4))
-	result = scheme.EvalGlobal(List(Symbol("real?"), Symbol("c2")))
-	if result != false {
-		t.Errorf("Expected (real? 3+4i) to be false but was: %v", result)
-	}
-}
+// TestRealP has been moved to testdata/scheme-tests.scm.
 
 func TestMakeRectangular(t *testing.T) {
 	scheme := New()
