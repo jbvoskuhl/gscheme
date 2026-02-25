@@ -99,6 +99,11 @@ func (e environment) Lookup(symbol Symbol) (result interface{}, ok bool) {
 	return result, ok
 }
 
+// String returns a human-readable representation of the environment.
+func (e environment) String() string {
+	return "#<environment>"
+}
+
 // Symbols returns all visible symbol names in this environment and its parents.
 // Child bindings shadow parent bindings with the same name.
 func (e environment) Symbols() []Symbol {

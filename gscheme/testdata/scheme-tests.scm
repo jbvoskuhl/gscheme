@@ -313,6 +313,10 @@
   (test-equal "string output-port display" "#<output-port>"
     (written (open-output-string)))
 
+  ;; Environment
+  (test-equal "environment display" "#<environment>"
+    (written (interaction-environment)))
+
   ;; procedure? recognizes all callable types
   (test-assert "procedure? on closure" (procedure? my-add))
   (test-assert "procedure? on primitive" (procedure? car))
