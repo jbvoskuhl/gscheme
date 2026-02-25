@@ -301,6 +301,10 @@
   (test-equal "built-in macro when" "#<macro when>" (written when))
   (test-equal "built-in macro unless" "#<macro unless>" (written unless))
 
+  ;; Continuation
+  (test-equal "continuation display" "#<continuation>"
+    (call/cc (lambda (k) (written k))))
+
   ;; procedure? recognizes all callable types
   (test-assert "procedure? on closure" (procedure? my-add))
   (test-assert "procedure? on primitive" (procedure? car))

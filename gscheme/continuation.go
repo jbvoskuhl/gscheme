@@ -13,6 +13,10 @@ type continuation struct {
 	sentinel *continuationEscape
 }
 
+func (c *continuation) String() string {
+	return "#<continuation>"
+}
+
 // Apply invokes the escape continuation: stores the argument in the sentinel
 // and panics to unwind the stack back to the call/cc frame.
 func (c *continuation) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {
