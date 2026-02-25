@@ -322,4 +322,51 @@
   (test-assert "procedure? on primitive" (procedure? car))
   (test-assert "procedure? on lambda" (procedure? (lambda () 1))))
 
+;;;;;;;;;;;;;;;; with-exception-handler
+
+(test-group "with-exception-handler"
+  ;; Handler called on raise with non-error value
+  (test-equal "handler called on raise" 42
+    (with-exception-handler
+      (lambda (e) e)
+      (lambda () (raise 42))))
+  ;; Handler called on error object
+  (test-eqv "handler called on error" #t
+    (with-exception-handler
+      (lambda (e) (error-object? e))
+      (lambda () (error "boom"))))
+  ;; Normal return (no exception)
+  (test-equal "normal return" 99
+    (with-exception-handler
+      (lambda (e) 'should-not-reach)
+      (lambda () 99)))
+  ;; Nested handlers (inner re-raises to outer)
+  (test-equal "nested handlers" 'outer
+    (with-exception-handler
+      (lambda (e) 'outer)
+      (lambda ()
+        (with-exception-handler
+          (lambda (e) (raise 'reraised))
+          (lambda () (raise 'inner)))))))
+
+;;;;;;;;;;;;;;;; raise-continuable
+
+(test-group "raise-continuable"
+  ;; Basic: handler called and result returned
+  (test-equal "raise-continuable calls handler" 42
+    (with-exception-handler
+      (lambda (e) (+ e 1))
+      (lambda () (raise-continuable 41)))))
+
+;;;;;;;;;;;;;;;; rationalize
+
+(test-group "rationalize"
+  (test-equal "rationalize 3/10 1/10" 1/3 (rationalize 3/10 1/10))
+  (test-equal "rationalize 7/16 1/16" 1/2 (rationalize 7/16 1/16))
+  (test-equal "rationalize integer" 3 (rationalize 4 1))
+  (test-equal "rationalize zero" 0 (rationalize 0 1/2))
+  ;; Exactness preserved
+  (test-eqv "rationalize exact is exact" #t (exact? (rationalize 3/10 1/10)))
+  (test-eqv "rationalize inexact is inexact" #t (inexact? (rationalize 0.3 0.1))))
+
 (test-end "gscheme")

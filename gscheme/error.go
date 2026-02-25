@@ -97,6 +97,15 @@ func (r *raisedError) GetIrritants() Pair { return nil }
 func (r *raisedError) IsReadError() bool  { return false }
 func (r *raisedError) IsFileError() bool  { return false }
 
+// unwrapRaisedValue extracts the original value from a raisedError wrapper,
+// or returns the Error as-is if it was raised via error/Err.
+func unwrapRaisedValue(err Error) interface{} {
+	if raised, ok := err.(*raisedError); ok {
+		return raised.value
+	}
+	return err
+}
+
 // Err is used in gscheme to package up an error and raise it using the panic functionality.
 func Err(message string, irritants Pair) interface{} {
 	panic(NewError(message, irritants))

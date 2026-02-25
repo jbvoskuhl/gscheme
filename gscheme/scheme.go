@@ -306,10 +306,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 					}
 
 					// Unwrap raisedError to get the actual raised value
-					conditionValue := interface{}(bodyResult)
-					if raised, ok := bodyResult.(*raisedError); ok {
-						conditionValue = raised.value
-					}
+					conditionValue := unwrapRaisedValue(bodyResult.(Error))
 
 					// Bind condition to variable and evaluate cond clauses
 					guardEnv := NewChildEnvironment(environment)

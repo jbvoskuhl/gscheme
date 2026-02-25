@@ -66,6 +66,8 @@ func installHigherOrderPrimitives(environment Environment) {
 		func(s Scheme, args Pair, env Environment) interface{} {
 			return s.Environment()
 		}))
+	environment.DefineName(NewHigherOrderPrimitive("with-exception-handler", 2, 2, primitiveWithExceptionHandler))
+	environment.DefineName(NewPrimitive("raise-continuable", 1, 1, primitiveRaise))
 	environment.DefineName(NewHigherOrderPrimitive("macro-expand", 1, 1, primitiveMacroExpand))
 	environment.DefineName(NewHigherOrderPrimitive("time-call", 1, 2, primitiveTimeCall))
 }
@@ -461,6 +463,26 @@ func primitiveRaise(args Pair) interface{} {
 		panic(err)
 	}
 	panic(&raisedError{value})
+}
+
+// primitiveWithExceptionHandler installs a handler and calls a thunk.
+// If the thunk raises an exception, the handler is called with the raised value.
+func primitiveWithExceptionHandler(s Scheme, args Pair, env Environment) interface{} {
+	handler, ok := First(args).(Applyer)
+	if !ok {
+		return Err("with-exception-handler: first argument must be a procedure", List(First(args)))
+	}
+	thunk, ok := Second(args).(Applyer)
+	if !ok {
+		return Err("with-exception-handler: second argument must be a procedure", List(Second(args)))
+	}
+	result := thunk.Apply(s, nil, env)
+	if err, ok := result.(Error); ok {
+		val := unwrapRaisedValue(err)
+		quoted := List(List(Symbol("quote"), val))
+		return handler.Apply(s, quoted, env)
+	}
+	return result
 }
 
 // primitiveMacroExpand expands a macro call without evaluating the result.

@@ -45,6 +45,7 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("inexact", 1, 1, primitiveExactToInexact))
 	environment.DefineName(NewPrimitive("numerator", 1, 1, primitiveNumerator))
 	environment.DefineName(NewPrimitive("denominator", 1, 1, primitiveDenominator))
+	environment.DefineName(NewPrimitive("rationalize", 2, 2, primitiveRationalize))
 }
 
 // isComplex returns true if x is a complex128
@@ -675,4 +676,79 @@ func primitiveDenominator(args Pair) interface{} {
 	}
 	g := gcd(f, d)
 	return d / g
+}
+
+// primitiveRationalize returns the simplest rational within y of x.
+// Uses the Stern-Brocot mediant search algorithm.
+func primitiveRationalize(args Pair) interface{} {
+	x, y := First(args), Second(args)
+	exactResult := isExact(x) && isExact(y)
+
+	// Convert to *big.Rat for the computation
+	var xr, yr *big.Rat
+	if isExact(x) {
+		xr = ToRat(x)
+	} else {
+		xr = new(big.Rat).SetFloat64(Num(x))
+	}
+	if isExact(y) {
+		yr = new(big.Rat).Abs(ToRat(y))
+	} else {
+		yr = new(big.Rat).SetFloat64(math.Abs(Num(y)))
+	}
+
+	lo := new(big.Rat).Sub(xr, yr)
+	hi := new(big.Rat).Add(xr, yr)
+
+	result := sternBrocot(lo, hi)
+
+	if exactResult {
+		return SimplifyRat(result)
+	}
+	f, _ := result.Float64()
+	return f
+}
+
+// sternBrocot finds the simplest rational (smallest denominator) in [lo, hi].
+func sternBrocot(lo, hi *big.Rat) *big.Rat {
+	// If interval contains 0, return 0
+	if lo.Sign() <= 0 && hi.Sign() >= 0 {
+		return new(big.Rat)
+	}
+
+	// If interval is entirely negative, negate, find, negate result
+	if hi.Sign() < 0 {
+		result := sternBrocot(new(big.Rat).Neg(hi), new(big.Rat).Neg(lo))
+		return result.Neg(result)
+	}
+
+	// Now lo > 0. Check if interval contains an integer.
+	// The smallest positive integer in [lo, hi] is ceil(lo).
+	loNum, loDen := lo.Num(), lo.Denom()
+	ceilLo := new(big.Int).Add(new(big.Int).Div(loNum, loDen), big.NewInt(1))
+	// If lo is itself an integer, ceil(lo) = lo
+	if new(big.Int).Mod(loNum, loDen).Sign() == 0 {
+		ceilLo = new(big.Int).Div(loNum, loDen)
+	}
+	ceilRat := new(big.Rat).SetInt(ceilLo)
+	if ceilRat.Cmp(lo) >= 0 && ceilRat.Cmp(hi) <= 0 {
+		return ceilRat
+	}
+
+	// No integer in interval. Use Stern-Brocot / continued fraction approach.
+	// Both lo and hi are in (n, n+1) for some integer n. Subtract n, invert, recurse.
+	n := new(big.Int).Div(lo.Num(), lo.Denom()) // floor(lo)
+	nRat := new(big.Rat).SetInt(n)
+
+	// newLo = 1/(hi - n), newHi = 1/(lo - n)
+	loMinusN := new(big.Rat).Sub(lo, nRat)
+	hiMinusN := new(big.Rat).Sub(hi, nRat)
+
+	newLo := new(big.Rat).Inv(hiMinusN)
+	newHi := new(big.Rat).Inv(loMinusN)
+
+	sub := sternBrocot(newLo, newHi)
+
+	// result = n + 1/sub
+	return new(big.Rat).Add(nRat, new(big.Rat).Inv(sub))
 }
