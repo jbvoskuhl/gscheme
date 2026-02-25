@@ -305,6 +305,14 @@
   (test-equal "continuation display" "#<continuation>"
     (call/cc (lambda (k) (written k))))
 
+  ;; Ports
+  (test-equal "input-port display" "#<input-port>"
+    (written (current-input-port)))
+  (test-equal "output-port display" "#<output-port>"
+    (written (current-output-port)))
+  (test-equal "string output-port display" "#<output-port>"
+    (written (open-output-string)))
+
   ;; procedure? recognizes all callable types
   (test-assert "procedure? on closure" (procedure? my-add))
   (test-assert "procedure? on primitive" (procedure? car))

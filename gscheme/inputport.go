@@ -167,6 +167,11 @@ func (p *InputPort) Close() error {
 	return nil
 }
 
+// String returns a human-readable representation of the input port.
+func (p *InputPort) String() string {
+	return "#<input-port>"
+}
+
 // IsOpen returns true if the input port has not been closed.
 func (p *InputPort) IsOpen() bool {
 	return !p.closed
