@@ -91,43 +91,35 @@ func (s *scheme) ReadEvalPrintLoop() {
 		return
 	}
 
+	rl.Completer = MakeSymbolCompleter(s.environment)
+
 	accumulated := ""
-	prompt := "> "
 	for {
-		line, err := rl.ReadLine(prompt)
+		text, err := rl.ReadLine("> ", "  ", accumulated)
 		if err == io.EOF {
 			return
 		}
 		if err == ErrInterrupt {
 			accumulated = ""
-			prompt = "> "
 			continue
 		}
 		if err != nil {
 			return
 		}
 
-		if accumulated == "" {
-			accumulated = line
-		} else {
-			accumulated += "\n" + line
-		}
-
-		if strings.TrimSpace(accumulated) == "" {
+		if strings.TrimSpace(text) == "" {
 			accumulated = ""
-			prompt = "> "
 			continue
 		}
 
-		input := NewInputPortFromString(accumulated)
+		input := NewInputPortFromString(text)
 		x, incomplete := s.tryRead(input)
 		if incomplete {
-			prompt = "  "
+			accumulated = text
 			continue
 		}
 
 		accumulated = ""
-		prompt = "> "
 
 		if IsEOF(x) {
 			continue

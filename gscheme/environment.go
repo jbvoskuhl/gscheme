@@ -6,6 +6,7 @@ type Environment interface {
 	DefineName(name Namer) interface{}
 	Set(symbol Symbol, value interface{}) bool
 	Lookup(symbol Symbol) (result interface{}, ok bool)
+	Symbols() []Symbol
 }
 
 // Namer is an interface on any object that knows its own name.
@@ -96,4 +97,25 @@ func (e environment) Lookup(symbol Symbol) (result interface{}, ok bool) {
 		return e.parent.Lookup(symbol)
 	}
 	return result, ok
+}
+
+// Symbols returns all visible symbol names in this environment and its parents.
+// Child bindings shadow parent bindings with the same name.
+func (e environment) Symbols() []Symbol {
+	seen := make(map[Symbol]bool)
+	var result []Symbol
+	for env := &e; env != nil; {
+		for sym := range env.bindings {
+			if !seen[sym] {
+				seen[sym] = true
+				result = append(result, sym)
+			}
+		}
+		if p, ok := env.parent.(*environment); ok {
+			env = p
+		} else {
+			break
+		}
+	}
+	return result
 }
