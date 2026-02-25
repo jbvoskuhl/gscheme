@@ -1,5 +1,7 @@
 package gscheme
 
+import "fmt"
+
 // Closure is a user-defined procedure. It is "closed" over the environment in which it was created.
 // To apply the procedure, bind the parameters to the passed in variables, and evaluate the body.
 type Closure interface {
@@ -40,6 +42,13 @@ func (c *closure) Params() interface{} { return c.params }
 
 // Env returns the closure's captured environment.
 func (c *closure) Env() Environment { return c.env }
+
+func (c *closure) String() string {
+	if c.name == "" {
+		return "#<procedure>"
+	}
+	return fmt.Sprintf("#<procedure %v>", c.name)
+}
 
 // Apply evaluates the closure body in a new environment with parameters bound to arguments.
 func (c *closure) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {

@@ -32,6 +32,10 @@ func installPrimitives(environment Environment) {
 	installSymbolPrimitives(environment)
 }
 
+func (p primitive) String() string {
+	return fmt.Sprintf("#<primitive %v>", p.name)
+}
+
 func (p primitive) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {
 	numArgs := Len(args)
 	if numArgs < int(p.minArgs) {

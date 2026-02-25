@@ -28,6 +28,10 @@ func NewHigherOrderPrimitive(name Symbol, minArgs, maxArgs uint16, body func(Sch
 	}
 }
 
+func (p *higherOrderPrimitive) String() string {
+	return fmt.Sprintf("#<primitive %v>", p.name)
+}
+
 // Apply evaluates the arguments and calls the body with interpreter access.
 func (p *higherOrderPrimitive) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {
 	numArgs := Len(args)

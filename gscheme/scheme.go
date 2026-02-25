@@ -343,7 +343,7 @@ func (s *scheme) Eval(x interface{}, environment Environment) (result interface{
 						return Err("define: expected symbol", List(first))
 					}
 					val := s.Eval(Second(args), environment)
-					if proc, ok := val.(Procedure); ok && proc.Name() == "anonymous procedure" {
+					if proc, ok := val.(Procedure); ok && proc.Name() == "" {
 						proc.SetName(name)
 					}
 					return environment.Define(name, val)

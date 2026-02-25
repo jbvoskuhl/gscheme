@@ -1,5 +1,7 @@
 package gscheme
 
+import "fmt"
+
 // Macro is a syntax transformer. Unlike a closure which receives evaluated arguments
 // and returns a value, a macro receives unevaluated arguments (syntax) and returns
 // code to be evaluated.
@@ -29,6 +31,13 @@ func NewMacro(params interface{}, body interface{}, env Environment) Macro {
 		body:   bodyExpr,
 		env:    env,
 	}
+}
+
+func (m *macro) String() string {
+	if m.name == "" {
+		return "#<macro>"
+	}
+	return fmt.Sprintf("#<macro %v>", m.name)
 }
 
 // Apply for a macro shouldn't normally be called directly - use Expand instead.

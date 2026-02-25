@@ -254,4 +254,56 @@
   (test-equal "time-call result" 3 (car (time-call (lambda () (+ 1 2)))))
   (test-equal "time-call with count" 42 (car (time-call (lambda () 42) 10))))
 
+;;;;;;;;;;;;;;;; procedure display format
+
+(test-group "procedure-display"
+  ;; Helper: capture write output of an object
+  (define (written obj)
+    (define p (open-output-string))
+    (write obj p)
+    (get-output-string p))
+
+  ;; Named closure via (define (f x) ...) shorthand
+  (define (my-add x y) (+ x y))
+  (test-equal "named closure" "#<procedure my-add>" (written my-add))
+
+  ;; Named closure via (define name (lambda ...))
+  (define my-sub (lambda (x y) (- x y)))
+  (test-equal "named closure via define" "#<procedure my-sub>" (written my-sub))
+
+  ;; Anonymous closure — not bound through define
+  (test-equal "anonymous closure" "#<procedure>" (written (lambda (x) x)))
+
+  ;; Closure passed as argument stays anonymous
+  (define (apply-and-write f) (written f))
+  (test-equal "anonymous closure as arg" "#<procedure>" (apply-and-write (lambda (x) x)))
+
+  ;; Primitive (simple)
+  (test-equal "primitive car" "#<primitive car>" (written car))
+  (test-equal "primitive +" "#<primitive +>" (written +))
+  (test-equal "primitive string-append" "#<primitive string-append>" (written string-append))
+
+  ;; Primitive (higher-order)
+  (test-equal "primitive map" "#<primitive map>" (written map))
+  (test-equal "primitive call/cc" "#<primitive call/cc>" (written call/cc))
+  (test-equal "primitive eval" "#<primitive eval>" (written eval))
+  (test-equal "primitive apply" "#<primitive apply>" (written apply))
+
+  ;; Named macro via define
+  (define my-swap
+    (macro (a b)
+      (list 'let (list (list 'tmp a))
+            (list 'set! a b)
+            (list 'set! b 'tmp))))
+  (test-equal "named macro" "#<macro my-swap>" (written my-swap))
+
+  ;; Built-in macros (when/unless are defined as macros in primitives.scm)
+  (test-equal "built-in macro when" "#<macro when>" (written when))
+  (test-equal "built-in macro unless" "#<macro unless>" (written unless))
+
+  ;; procedure? recognizes all callable types
+  (test-assert "procedure? on closure" (procedure? my-add))
+  (test-assert "procedure? on primitive" (procedure? car))
+  (test-assert "procedure? on lambda" (procedure? (lambda () 1))))
+
 (test-end "gscheme")

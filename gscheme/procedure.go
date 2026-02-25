@@ -27,14 +27,14 @@ func (p procedure) Apply(interpreter Scheme, args Pair, environment Environment)
 
 // String creates the display form of a procedure object.
 func (p procedure) String() string {
-	return fmt.Sprintf("{%v}", p.Name())
+	if p.name == "" {
+		return "#<procedure>"
+	}
+	return fmt.Sprintf("#<procedure %v>", p.name)
 }
 
-// Name returns the name of procedure; it returns anonymous procedure if no name has been set.
+// Name returns the name of procedure; it returns an empty symbol if no name has been set.
 func (p procedure) Name() Symbol {
-	if p.name == "" {
-		return Symbol("anonymous procedure")
-	}
 	return p.name
 }
 
