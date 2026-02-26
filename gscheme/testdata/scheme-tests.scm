@@ -1,9 +1,6 @@
 ;; GScheme test suite — SRFI 64
-;; Converted from tailcall_test.go and higher_test.go
 
 (test-begin "gscheme")
-
-;;;;;;;;;;;;;;;; when
 
 (test-group "when"
   (test-equal "when true" 3 (when #t 1 2 3))
@@ -13,8 +10,6 @@
   (when-loop 100000)
   (test-assert "when TCO" #t))
 
-;;;;;;;;;;;;;;;; unless
-
 (test-group "unless"
   (test-eqv "unless true" #f (unless #t 1 2 3))
   (test-equal "unless false" 3 (unless #f 1 2 3))
@@ -22,8 +17,6 @@
   (define (unless-loop n) (unless (= n 0) (unless-loop (- n 1))))
   (unless-loop 100000)
   (test-assert "unless TCO" #t))
-
-;;;;;;;;;;;;;;;; if
 
 (test-group "if"
   (test-equal "if consequent tail" 42 (if #t (begin 42) 0))
@@ -35,8 +28,6 @@
   (define (if-loop-a n) (if (> n 0) (if-loop-a (- n 1)) 'done))
   (test-eq "if TCO alternate" 'done (if-loop-a 100000)))
 
-;;;;;;;;;;;;;;;; begin
-
 (test-group "begin"
   (test-equal "begin returns last" 3 (begin 1 2 3))
   (test-assert "begin empty is void" (eq? (begin) (if #f #f)))
@@ -44,8 +35,6 @@
   ;; TCO
   (define (begin-loop n) (begin (if (= n 0) 'done (begin-loop (- n 1)))))
   (test-eq "begin TCO" 'done (begin-loop 100000)))
-
-;;;;;;;;;;;;;;;; cond
 
 (test-group "cond"
   (test-equal "cond first" 42 (cond (#t 42)))
@@ -58,8 +47,6 @@
   (define (cond-loop n) (cond ((= n 0) 'done) (else (cond-loop (- n 1)))))
   (test-eq "cond TCO" 'done (cond-loop 100000)))
 
-;;;;;;;;;;;;;;;; case
-
 (test-group "case"
   (test-eq "case match first" 'one (case 1 ((1) 'one) ((2) 'two) (else 'other)))
   (test-eq "case match second" 'two (case 2 ((1) 'one) ((2) 'two) (else 'other)))
@@ -69,13 +56,10 @@
   (define (case-loop n)
     (case (= n 0) ((#t) 'done) (else (case-loop (- n 1)))))
   (test-eq "case TCO" 'done (case-loop 100000))
-  ;; Tests from higher_test.go TestCase
   (test-eq "case +1+1" 'two (case (+ 1 1) ((1) 'one) ((2) 'two) ((3) 'three)))
   (test-eq "case else 99" 'other (case 99 ((1) 'one) ((2) 'two) (else 'other)))
   (test-eq "case multi" 'low (case 2 ((1 2 3) 'low) ((4 5 6) 'high)))
   (test-eqv "case no match" #f (case 99 ((1) 'one) ((2) 'two))))
-
-;;;;;;;;;;;;;;;; do
 
 (test-group "do"
   (test-equal "do basic" 5 (do ((i 0 (+ i 1))) ((= i 5) i)))
@@ -86,14 +70,11 @@
       (do ((i 0 (+ i 1))) ((= i 3) x) (set! x (+ x 10)))))
   ;; TCO
   (test-eq "do TCO" 'done (do ((i 0 (+ i 1))) ((= i 100000) 'done)))
-  ;; Tests from higher_test.go TestDo
   (test-equal "do count to 3" 3 (do ((n 0 (+ n 1))) ((= n 3) n)))
   (test-equal "do sum 1 to 5" 15
     (do ((n 1 (+ n 1)) (sum 0 (+ sum n))) ((> n 5) sum)))
   (test-equal "do build list" '(2 1 0)
     (do ((n 0 (+ n 1)) (lst '() (cons n lst))) ((= n 3) lst))))
-
-;;;;;;;;;;;;;;;; let / let* / letrec
 
 (test-group "let/let*/letrec"
   (test-equal "let basic" 3 (let ((x 1) (y 2)) (+ x y)))
@@ -125,8 +106,6 @@
   ;; letrec*
   (test-equal "letrec*" 2 (letrec* ((x 1) (y (+ x 1))) y)))
 
-;;;;;;;;;;;;;;;; and
-
 (test-group "and"
   (test-eqv "and no args" #t (and))
   (test-equal "and single" 42 (and 42))
@@ -137,8 +116,6 @@
   (define (and-loop n) (and (> n 0) (and-loop (- n 1))))
   (test-eqv "and TCO" #f (and-loop 100000)))
 
-;;;;;;;;;;;;;;;; or
-
 (test-group "or"
   (test-eqv "or no args" #f (or))
   (test-equal "or single" 42 (or 42))
@@ -148,8 +125,6 @@
   ;; TCO
   (define (or-loop n) (or (= n 0) (or-loop (- n 1))))
   (test-eqv "or TCO" #t (or-loop 100000)))
-
-;;;;;;;;;;;;;;;; error objects
 
 (test-group "error-objects"
   (test-eqv "error-object? true"  #t (guard (e (#t (error-object? e))) (error "test")))
@@ -162,8 +137,6 @@
     (guard (e (#t (error-object-irritants e))) (error "msg" 1 2 3)))
   (test-assert "error-object-irritants empty"
     (null? (guard (e (#t (error-object-irritants e))) (error "msg")))))
-
-;;;;;;;;;;;;;;;; guard
 
 (test-group "guard"
   (test-equal "guard catch raise" 42 (guard (e (#t e)) (raise 42)))
@@ -180,8 +153,6 @@
       (if (= n 0) (raise 'done) (guard-loop (- n 1)))))
   (test-eq "guard tail position" 'done (guard-loop 100000)))
 
-;;;;;;;;;;;;;;;; quasiquote
-
 (test-group "quasiquote"
   (test-equal "basic quasiquote" '(1 2 3) `(1 2 3))
   (define x 42)
@@ -193,8 +164,6 @@
   (test-eq "quasiquote symbol" 'x `x)
   (test-equal "quasiquote number" 42 `42))
 
-;;;;;;;;;;;;;;;; when/unless from higher_test.go
-
 (test-group "when/unless extras"
   ;; when with side effects
   (define x 0)
@@ -204,8 +173,6 @@
   (set! x 0)
   (unless (< 5 3) (set! x 10))
   (test-equal "unless side effect" 10 x))
-
-;;;;;;;;;;;;;;;; delay/force
 
 (test-group "delay/force"
   (test-equal "basic delay/force" 3 (force (delay (+ 1 2))))
@@ -218,8 +185,6 @@
   ;; promise is a procedure
   (test-eqv "promise is procedure" #t (procedure? (delay 42))))
 
-;;;;;;;;;;;;;;;; map/for-each/apply (evalScheme-based)
-
 (test-group "map/for-each/apply"
   (test-equal "map multi-list" '(11 22 33) (map + '(1 2 3) '(10 20 30)))
   (test-equal "map shortest" '(11 22) (map + '(1 2) '(10 20 30)))
@@ -230,66 +195,47 @@
   (test-equal "apply variadic" 10 (apply + 1 2 '(3 4)))
   (test-equal "apply list" 6 (apply + '(1 2 3))))
 
-;;;;;;;;;;;;;;;; eval / interaction-environment
-
 (test-group "eval"
   (test-equal "eval interaction-environment" 3
     (eval '(+ 1 2) (interaction-environment))))
-
-;;;;;;;;;;;;;;;; syntax-error
 
 (test-group "syntax-error"
   (test-eqv "syntax-error is error" #t
     (guard (e (#t (error-object? e))) (syntax-error "bad syntax"))))
 
-;;;;;;;;;;;;;;;; macro-expand
-
 (test-group "macro-expand"
-  ;; non-macro returns unchanged
   (test-equal "macro-expand non-macro" '(+ 1 2) (macro-expand '(+ 1 2))))
-
-;;;;;;;;;;;;;;;; time-call
 
 (test-group "time-call"
   (test-equal "time-call result" 3 (car (time-call (lambda () (+ 1 2)))))
   (test-equal "time-call with count" 42 (car (time-call (lambda () 42) 10))))
 
-;;;;;;;;;;;;;;;; procedure display format
-
 (test-group "procedure-display"
-  ;; Helper: capture write output of an object
   (define (written obj)
     (define p (open-output-string))
     (write obj p)
     (get-output-string p))
 
-  ;; Named closure via (define (f x) ...) shorthand
   (define (my-add x y) (+ x y))
   (test-equal "named closure" "#<procedure my-add>" (written my-add))
 
-  ;; Named closure via (define name (lambda ...))
   (define my-sub (lambda (x y) (- x y)))
   (test-equal "named closure via define" "#<procedure my-sub>" (written my-sub))
 
-  ;; Anonymous closure — not bound through define
   (test-equal "anonymous closure" "#<procedure>" (written (lambda (x) x)))
 
-  ;; Closure passed as argument stays anonymous
   (define (apply-and-write f) (written f))
   (test-equal "anonymous closure as arg" "#<procedure>" (apply-and-write (lambda (x) x)))
 
-  ;; Primitive (simple)
   (test-equal "primitive car" "#<primitive car>" (written car))
   (test-equal "primitive +" "#<primitive +>" (written +))
   (test-equal "primitive string-append" "#<primitive string-append>" (written string-append))
 
-  ;; Primitive (higher-order)
   (test-equal "primitive map" "#<primitive map>" (written map))
   (test-equal "primitive call/cc" "#<primitive call/cc>" (written call/cc))
   (test-equal "primitive eval" "#<primitive eval>" (written eval))
   (test-equal "primitive apply" "#<primitive apply>" (written apply))
 
-  ;; Named macro via define
   (define my-swap
     (macro (a b)
       (list 'let (list (list 'tmp a))
@@ -297,15 +243,12 @@
             (list 'set! b 'tmp))))
   (test-equal "named macro" "#<macro my-swap>" (written my-swap))
 
-  ;; Built-in macros (when/unless are defined as macros in primitives.scm)
   (test-equal "built-in macro when" "#<macro when>" (written when))
   (test-equal "built-in macro unless" "#<macro unless>" (written unless))
 
-  ;; Continuation
   (test-equal "continuation display" "#<continuation>"
     (call/cc (lambda (k) (written k))))
 
-  ;; Ports
   (test-equal "input-port display" "#<input-port>"
     (written (current-input-port)))
   (test-equal "output-port display" "#<output-port>"
@@ -313,22 +256,40 @@
   (test-equal "string output-port display" "#<output-port>"
     (written (open-output-string)))
 
-  ;; Environment
   (test-equal "environment display" "#<environment>"
     (written (interaction-environment)))
 
-  ;; procedure? recognizes all callable types
   (test-assert "procedure? on closure" (procedure? my-add))
   (test-assert "procedure? on primitive" (procedure? car))
   (test-assert "procedure? on lambda" (procedure? (lambda () 1))))
 
-;;;;;;;;;;;;;;;; number?
+(test-group "exact?"
+  (test-eqv "integer is exact" #t (exact? 42))
+  (test-eqv "bigint is exact" #t (exact? (expt 2 100)))
+  (test-eqv "rational is exact" #t (exact? 3/4))
+  (test-eqv "float is inexact" #f (exact? 42.0))
+  (test-eqv "complex is inexact" #f (exact? 3+4i))
+  (test-eqv "symbol is not exact" #f (exact? 'x)))
+
+(test-group "inexact?"
+  (test-eqv "float is inexact" #t (inexact? 42.0))
+  (test-eqv "complex is inexact" #t (inexact? 3+4i))
+  (test-eqv "integer is not inexact" #f (inexact? 42))
+  (test-eqv "bigint is not inexact" #f (inexact? (expt 2 100)))
+  (test-eqv "rational is not inexact" #f (inexact? 3/4))
+  (test-eqv "symbol is not inexact" #f (inexact? 'x)))
+
+(test-group "exact-integer?"
+  (test-eqv "integer" #t (exact-integer? 42))
+  (test-eqv "bigint" #t (exact-integer? (expt 2 100)))
+  (test-eqv "integer rational" #t (exact-integer? 6/3))
+  (test-eqv "non-integer rational" #f (exact-integer? 3/4))
+  (test-eqv "float" #f (exact-integer? 42.0))
+  (test-eqv "complex" #f (exact-integer? 3+4i)))
 
 (test-group "number?"
   (test-eqv "float is number" #t (number? 42))
   (test-eqv "symbol is not number" #f (number? 'x)))
-
-;;;;;;;;;;;;;;;; list?
 
 (test-group "list?"
   (test-eqv "proper list" #t (list? '(1 2 3)))
@@ -340,8 +301,6 @@
   (set-cdr! (cdddr cycle) cycle)
   (test-eqv "circular list" #f (list? cycle)))
 
-;;;;;;;;;;;;;;;; complex?
-
 (test-group "complex?"
   (test-eqv "real is complex" #t (complex? 42))
   (test-eqv "float is complex" #t (complex? 3.14))
@@ -349,32 +308,24 @@
   (test-eqv "symbol is not complex" #f (complex? 'x))
   (test-eqv "string is not complex" #f (complex? "hello")))
 
-;;;;;;;;;;;;;;;; real?
-
 (test-group "real?"
   (test-eqv "real is real" #t (real? 42))
   (test-eqv "complex with zero imag is real" #t (real? 3+0i))
   (test-eqv "complex with nonzero imag is not real" #f (real? 3+4i)))
 
-;;;;;;;;;;;;;;;; with-exception-handler
-
 (test-group "with-exception-handler"
-  ;; Handler called on raise with non-error value
   (test-equal "handler called on raise" 42
     (with-exception-handler
       (lambda (e) e)
       (lambda () (raise 42))))
-  ;; Handler called on error object
   (test-eqv "handler called on error" #t
     (with-exception-handler
       (lambda (e) (error-object? e))
       (lambda () (error "boom"))))
-  ;; Normal return (no exception)
   (test-equal "normal return" 99
     (with-exception-handler
       (lambda (e) 'should-not-reach)
       (lambda () 99)))
-  ;; Nested handlers (inner re-raises to outer)
   (test-equal "nested handlers" 'outer
     (with-exception-handler
       (lambda (e) 'outer)
@@ -383,16 +334,11 @@
           (lambda (e) (raise 'reraised))
           (lambda () (raise 'inner)))))))
 
-;;;;;;;;;;;;;;;; raise-continuable
-
 (test-group "raise-continuable"
-  ;; Basic: handler called and result returned
   (test-equal "raise-continuable calls handler" 42
     (with-exception-handler
       (lambda (e) (+ e 1))
       (lambda () (raise-continuable 41)))))
-
-;;;;;;;;;;;;;;;; rationalize
 
 (test-group "rationalize"
   (test-equal "rationalize 3/10 1/10" 1/3 (rationalize 3/10 1/10))

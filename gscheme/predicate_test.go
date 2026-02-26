@@ -338,50 +338,11 @@ func TestRationalP(t *testing.T) {
 	}
 }
 
-func TestExactP(t *testing.T) {
-	scheme := New()
-	// In gscheme, all numbers are inexact
-	result := scheme.EvalGlobal(List(Symbol("exact?"), float64(42)))
-	if result != false {
-		t.Errorf("Expected (exact? 42) to be false but was: %v", result)
-	}
+// TestExactP has been moved to testdata/scheme-tests.scm.
 
-	scheme.Environment().Define(Symbol("c"), complex(3, 4))
-	result = scheme.EvalGlobal(List(Symbol("exact?"), Symbol("c")))
-	if result != false {
-		t.Errorf("Expected (exact? 3+4i) to be false but was: %v", result)
-	}
-}
+// TestInexactP has been moved to testdata/scheme-tests.scm.
 
-func TestInexactP(t *testing.T) {
-	scheme := New()
-	// All numbers in gscheme are inexact
-	result := scheme.EvalGlobal(List(Symbol("inexact?"), float64(42)))
-	if result != true {
-		t.Errorf("Expected (inexact? 42) to be true but was: %v", result)
-	}
-
-	scheme.Environment().Define(Symbol("c"), complex(3, 4))
-	result = scheme.EvalGlobal(List(Symbol("inexact?"), Symbol("c")))
-	if result != true {
-		t.Errorf("Expected (inexact? 3+4i) to be true but was: %v", result)
-	}
-
-	// Non-numbers are not inexact
-	result = scheme.EvalGlobal(List(Symbol("inexact?"), List(Symbol("quote"), Symbol("x"))))
-	if result != false {
-		t.Errorf("Expected (inexact? 'x) to be false but was: %v", result)
-	}
-}
-
-func TestExactIntegerP(t *testing.T) {
-	scheme := New()
-	// In gscheme, there are no exact integers
-	result := scheme.EvalGlobal(List(Symbol("exact-integer?"), float64(42)))
-	if result != false {
-		t.Errorf("Expected (exact-integer? 42) to be false but was: %v", result)
-	}
-}
+// TestExactIntegerP has been moved to testdata/scheme-tests.scm.
 
 func TestFiniteP(t *testing.T) {
 	scheme := New()
