@@ -349,4 +349,156 @@
   (test-eqv "rationalize exact is exact" #t (exact? (rationalize 3/10 1/10)))
   (test-eqv "rationalize inexact is inexact" #t (inexact? (rationalize 0.3 0.1))))
 
+(test-group "set-car!/set-cdr!"
+  ;; set-car! / set-first! mutation
+  (define p (cons 1 2))
+  (set-car! p 99)
+  (test-eqv "set-car! changes car" 99 (car p))
+  (test-eqv "set-car! preserves cdr" 2 (cdr p))
+
+  ;; set-first! is an alias for set-car!
+  (define q (cons 'a 'b))
+  (set-first! q 'z)
+  (test-eq "set-first! changes car" 'z (car q))
+
+  ;; set-cdr! / set-rest! mutation
+  (define r (cons 1 2))
+  (set-cdr! r 99)
+  (test-eqv "set-cdr! changes cdr" 99 (cdr r))
+  (test-eqv "set-cdr! preserves car" 1 (car r))
+
+  ;; set-rest! is an alias for set-cdr!
+  (define s (cons 'a 'b))
+  (set-rest! s '(c d))
+  (test-eq "set-rest! changes cdr" 'c (cadr s))
+
+  ;; set-cdr! with list tail
+  (define lst (list 1 2 3))
+  (set-cdr! lst '(20 30))
+  (test-equal "set-cdr! on list" '(1 20 30) lst))
+
+(test-group "truncate-quotient/truncate-remainder"
+  ;; truncate-quotient truncates toward zero, matching quotient
+  (test-eqv "truncate-quotient 7 2" 3 (truncate-quotient 7 2))
+  (test-eqv "truncate-quotient -7 2" -3 (truncate-quotient -7 2))
+  (test-eqv "truncate-quotient 7 -2" -3 (truncate-quotient 7 -2))
+  (test-eqv "truncate-quotient -7 -2" 3 (truncate-quotient -7 -2))
+
+  ;; truncate-remainder: sign follows dividend, matching remainder
+  (test-eqv "truncate-remainder 7 2" 1 (truncate-remainder 7 2))
+  (test-eqv "truncate-remainder -7 2" -1 (truncate-remainder -7 2))
+  (test-eqv "truncate-remainder 7 -2" 1 (truncate-remainder 7 -2))
+  (test-eqv "truncate-remainder -7 -2" -1 (truncate-remainder -7 -2))
+
+  ;; Compatibility with quotient/remainder
+  (test-eqv "truncate-quotient = quotient" #t
+    (= (truncate-quotient 13 4) (quotient 13 4)))
+  (test-eqv "truncate-remainder = remainder" #t
+    (= (truncate-remainder 13 4) (remainder 13 4)))
+
+  ;; Euclidean identity: n = q*d + r
+  (test-eqv "truncate identity" #t
+    (= 13 (+ (* (truncate-quotient 13 4) 4) (truncate-remainder 13 4)))))
+
+(test-group "asin"
+  ;; asin(0) = 0 exactly
+  (test-equal "asin 0" 0.0 (asin 0))
+  ;; sin is the left-inverse of asin on [-1, 1]
+  (test-assert "asin/sin roundtrip"
+    (< (abs (- (asin (sin 0.5)) 0.5)) 1e-10))
+  ;; 2*asin(1) = acos(-1) = pi
+  (test-assert "asin 1 = pi/2"
+    (< (abs (- (* 2.0 (asin 1)) (acos -1))) 1e-10))
+  ;; Negative argument: asin(-1) = -pi/2, so 2*asin(-1) + acos(-1) = -pi + pi = 0
+  (test-assert "asin -1 = -pi/2"
+    (< (abs (+ (* 2.0 (asin -1)) (acos -1))) 1e-10)))
+
+(test-group "acos"
+  ;; acos(1) = 0 exactly
+  (test-equal "acos 1" 0.0 (acos 1))
+  ;; cos is the left-inverse of acos on [0, pi]
+  (test-assert "acos/cos roundtrip"
+    (< (abs (- (acos (cos 1.0)) 1.0)) 1e-10))
+  ;; asin(x) + acos(x) = pi/2 for all x in [-1, 1]
+  (test-assert "asin + acos = pi/2"
+    (< (abs (- (+ (asin 0.5) (acos 0.5)) (* 0.5 (acos -1)))) 1e-10))
+  ;; acos(-1) = pi (the canonical source of pi)
+  (test-assert "acos -1 = pi"
+    (< (abs (- (acos -1) 3.141592653589793)) 1e-10)))
+
+(test-group "call-with-port"
+  ;; Return value is the result of the procedure
+  (define p1 (open-output-string))
+  (define r1 (call-with-port p1 (lambda (port) (write-string "hello" port) 'done)))
+  (test-eq "call-with-port returns proc result" 'done r1)
+  ;; Output port is closed after the call
+  (test-eqv "output port closed after call-with-port" #f (output-port-open? p1))
+
+  ;; Works with input ports
+  (define p2 (open-input-string "abc"))
+  (define r2 (call-with-port p2 (lambda (port) (read-char port))))
+  (test-eqv "call-with-port reads from input port" #\a r2)
+  ;; Input port is closed after the call
+  (test-eqv "input port closed after call-with-port" #f (input-port-open? p2)))
+
+(test-group "max/min exactness contagion"
+  ;; When all args are exact, result is exact
+  (test-eqv "max exact exact is exact" #t (exact? (max 1 2)))
+  (test-eqv "min exact exact is exact" #t (exact? (min 1 2)))
+  ;; When any arg is inexact, result is inexact (R7RS 6.2.6)
+  (test-eqv "max inexact exact is inexact" #t (inexact? (max 1 2.0)))
+  (test-eqv "max exact inexact is inexact" #t (inexact? (max 1.0 2)))
+  (test-eqv "min inexact exact is inexact" #t (inexact? (min 1 2.0)))
+  (test-eqv "min exact inexact is inexact" #t (inexact? (min 1.0 2)))
+  ;; Value is still correct even when coerced
+  (test-equal "max value correct after inexact coercion" 3.0 (max 1 3.0 2))
+  (test-equal "min value correct after inexact coercion" 1.0 (min 3 1.0 2)))
+
+(test-group "floor/ceiling/round/truncate on rationals"
+  ;; These exercise the *big.Rat code paths
+  (test-eqv "floor 7/2" 3 (floor 7/2))
+  (test-eqv "floor -7/2" -4 (floor -7/2))
+  (test-eqv "floor 4/2 exact integer" 2 (floor 4/2))
+  (test-eqv "ceiling 7/2" 4 (ceiling 7/2))
+  (test-eqv "ceiling -7/2" -3 (ceiling -7/2))
+  (test-eqv "ceiling 4/2 exact integer" 2 (ceiling 4/2))
+  ;; round uses banker's rounding (round-half-to-even)
+  (test-eqv "round 7/2 = 4 (even)" 4 (round 7/2))
+  (test-eqv "round 5/2 = 2 (even)" 2 (round 5/2))
+  (test-eqv "round 3/2 = 2 (even)" 2 (round 3/2))
+  (test-eqv "truncate 7/2" 3 (truncate 7/2))
+  (test-eqv "truncate -7/2" -3 (truncate -7/2))
+  ;; Results should be exact integers
+  (test-eqv "floor result is exact" #t (exact? (floor 7/2)))
+  (test-eqv "ceiling result is exact" #t (exact? (ceiling 7/2)))
+  (test-eqv "truncate result is exact" #t (exact? (truncate 7/2))))
+
+(test-group "numerator/denominator on exact rationals"
+  ;; Integer inputs
+  (test-eqv "numerator of exact integer" 5 (numerator 5))
+  (test-eqv "denominator of exact integer" 1 (denominator 5))
+  ;; Rational inputs
+  (test-eqv "numerator of 3/4" 3 (numerator 3/4))
+  (test-eqv "denominator of 3/4" 4 (denominator 3/4))
+  (test-eqv "numerator of -3/4" -3 (numerator -3/4))
+  (test-eqv "denominator of -3/4" 4 (denominator -3/4))
+  ;; Reducible fractions are simplified
+  (test-eqv "numerator of 6/4 = 3" 3 (numerator 6/4))
+  (test-eqv "denominator of 6/4 = 2" 2 (denominator 6/4))
+  ;; Results are exact
+  (test-eqv "numerator result is exact" #t (exact? (numerator 3/4)))
+  (test-eqv "denominator result is exact" #t (exact? (denominator 3/4))))
+
+(test-group "member/assoc with custom comparator"
+  ;; member with 3-arg form
+  (test-equal "member custom comparator found" '(2 3)
+    (member 2.0 '(1 2 3) =))
+  (test-eqv "member custom comparator not found" #f
+    (member 4 '(1 2 3) =))
+  ;; assoc with 3-arg form
+  (test-equal "assoc custom comparator found" '(2 . "two")
+    (assoc 2.0 '((1 . "one") (2 . "two") (3 . "three")) =))
+  (test-eqv "assoc custom comparator not found" #f
+    (assoc 4 '((1 . "one") (2 . "two")) =)))
+
 (test-end "gscheme")
