@@ -183,7 +183,66 @@
   (force p)
   (test-equal "promise memoization" 1 count)
   ;; promise is a procedure
-  (test-eqv "promise is procedure" #t (procedure? (delay 42))))
+  (test-eqv "promise is procedure" #t (procedure? (delay 42)))
+
+  ;; body not evaluated until forced
+  (define lazy-count 0)
+  (define lazy-p (delay (begin (set! lazy-count (+ lazy-count 1)) lazy-count)))
+  (test-equal "body not evaluated before force" 0 lazy-count)
+  (force lazy-p)
+  (test-equal "body evaluated after force" 1 lazy-count)
+
+  ;; chained delay/force
+  (test-equal "chained delay/force" 10
+    (force (delay (force (delay 10)))))
+
+  ;; promise evaluates binding at force time, not at delay time
+  (define force-time-val 5)
+  (define force-time-p (delay (* force-time-val 2)))
+  (set! force-time-val 10)
+  (test-equal "evaluates binding at force time" 20 (force force-time-p))
+
+  ;; promise as first-class value passed to a function
+  (define (force-and-double pr) (* 2 (force pr)))
+  (test-equal "promise passed to function" 14 (force-and-double (delay 7)))
+
+  ;; promises stored in a list and mapped over
+  (test-equal "map force over promise list" '(1 2 3)
+    (map force (list (delay 1) (delay 2) (delay 3))))
+
+  ;; memoized result is not recomputed even after source mutates
+  (define memo-val 1)
+  (define memo-p (delay memo-val))
+  (force memo-p)
+  (set! memo-val 99)
+  (test-equal "memoized value not recomputed after mutation" 1 (force memo-p))
+
+  ;; error in promise body propagates through force
+  (test-eqv "error in promise body propagates" #t
+    (guard (e (#t (error-object? e)))
+      (force (delay (error "promise error")))))
+
+  ;; R7RS gaps — not currently implemented:
+  ;;
+  ;; (force non-promise) should return the value unchanged (R7RS 6.4):
+  ;;   (test-equal "force non-promise returns value" 42 (force 42))
+  ;;
+  ;; promise? predicate (R7RS 6.4):
+  ;;   (test-eqv "promise? on promise" #t (promise? (delay 1)))
+  ;;   (test-eqv "promise? on non-promise" #f (promise? 42))
+  ;;
+  ;; make-promise — wraps a plain value as an already-forced promise (R7RS 6.4):
+  ;;   (test-equal "make-promise wraps value" 5 (force (make-promise 5)))
+  ;;   (test-eqv "make-promise on promise is identity" #t
+  ;;     (let ((p (delay 1))) (eq? p (make-promise p))))
+  ;;
+  ;; delay-force (aka lazy) — for iterative lazy algorithms without stack growth (R7RS 6.4):
+  ;;   (define (lazy-stream-from n)
+  ;;     (delay-force (cons n (lazy-stream-from (+ n 1)))))
+  ;;   (test-equal "delay-force iterative" 1000
+  ;;     (car (force (let loop ((s (lazy-stream-from 0)) (n 1000))
+  ;;                   (if (= n 0) s (loop (cdr (force s)) (- n 1)))))))
+  )
 
 (test-group "map/for-each/apply"
   (test-equal "map multi-list" '(11 22 33) (map + '(1 2 3) '(10 20 30)))
