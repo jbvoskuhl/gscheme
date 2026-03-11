@@ -166,24 +166,8 @@ const primitivesScheme = `
                                                               (list (cons '__loop__ steps))))))))))
             (cons '__loop__ inits)))))
 
-;; delay macro: lazy evaluation, creates a promise
-(define delay
-  (macro (exp)
-    (list 'let (list (list '__result-ready?__ #f)
-                     (list '__result__ #f))
-          (list 'lambda '()
-                (list 'if '__result-ready?__
-                      '__result__
-                      (list 'let (list (list '__x__ exp))
-                            (list 'if '__result-ready?__
-                                  '__result__
-                                  (list 'begin
-                                        (list 'set! '__result-ready?__ #t)
-                                        (list 'set! '__result__ '__x__)
-                                        '__result__))))))))
-
-;; force: evaluate a promise
-(define (force promise) (promise))
+;; delay and delay-force are special forms handled by the evaluator.
+;; force, make-promise, and promise? are Go primitives (see promise.go).
 
 ;; when: evaluate body when test is true
 (define when

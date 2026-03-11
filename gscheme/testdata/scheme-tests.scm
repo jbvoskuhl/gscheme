@@ -183,7 +183,7 @@
   (force p)
   (test-equal "promise memoization" 1 count)
   ;; promise is a procedure
-  (test-eqv "promise is procedure" #t (procedure? (delay 42)))
+  (test-eqv "promise? recognises delay result" #t (promise? (delay 42)))
 
   ;; body not evaluated until forced
   (define lazy-count 0)
@@ -222,27 +222,30 @@
     (guard (e (#t (error-object? e)))
       (force (delay (error "promise error")))))
 
-  ;; R7RS gaps — not currently implemented:
-  ;;
-  ;; (force non-promise) should return the value unchanged (R7RS 6.4):
-  ;;   (test-equal "force non-promise returns value" 42 (force 42))
-  ;;
-  ;; promise? predicate (R7RS 6.4):
-  ;;   (test-eqv "promise? on promise" #t (promise? (delay 1)))
-  ;;   (test-eqv "promise? on non-promise" #f (promise? 42))
-  ;;
-  ;; make-promise — wraps a plain value as an already-forced promise (R7RS 6.4):
-  ;;   (test-equal "make-promise wraps value" 5 (force (make-promise 5)))
-  ;;   (test-eqv "make-promise on promise is identity" #t
-  ;;     (let ((p (delay 1))) (eq? p (make-promise p))))
-  ;;
-  ;; delay-force (aka lazy) — for iterative lazy algorithms without stack growth (R7RS 6.4):
-  ;;   (define (lazy-stream-from n)
-  ;;     (delay-force (cons n (lazy-stream-from (+ n 1)))))
-  ;;   (test-equal "delay-force iterative" 1000
-  ;;     (car (force (let loop ((s (lazy-stream-from 0)) (n 1000))
-  ;;                   (if (= n 0) s (loop (cdr (force s)) (- n 1)))))))
-  )
+  ;; promise? predicate
+  (test-eqv "promise? on promise" #t (promise? (delay 1)))
+  (test-eqv "promise? on non-promise" #f (promise? 42))
+  ;; promise is not a procedure (R7RS distinguishes promise from procedure)
+  (test-eqv "promise is not procedure" #f (procedure? (delay 42)))
+
+  ;; (force non-promise) returns the value unchanged (R7RS 6.4)
+  (test-equal "force non-promise returns value" 42 (force 42))
+
+  ;; make-promise wraps a plain value as an already-forced promise
+  (test-equal "make-promise wraps value" 5 (force (make-promise 5)))
+  (test-eqv "make-promise on promise is identity" #t
+    (let ((p (delay 1))) (eq? p (make-promise p))))
+
+  ;; delay-force (lazy) — iterative lazy streams without stack growth
+  (define (lazy-stream-from n)
+    (delay-force (cons n (lazy-stream-from (+ n 1)))))
+  (test-equal "delay-force iterative" 1000
+    (car (force (let loop ((s (lazy-stream-from 0)) (n 1000))
+                  (if (= n 0) s (loop (cdr (force s)) (- n 1)))))))
+
+  ;; lazy is an alias for delay-force
+  (test-eqv "lazy alias for delay-force" #t
+    (promise? (lazy (values 1 2)))))
 
 (test-group "map/for-each/apply"
   (test-equal "map multi-list" '(11 22 33) (map + '(1 2 3) '(10 20 30)))
