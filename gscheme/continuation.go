@@ -17,11 +17,12 @@ func (c *continuation) String() string {
 	return "#<continuation>"
 }
 
-// Apply invokes the escape continuation: stores the argument in the sentinel
+// Apply invokes the escape continuation: stores the argument(s) in the sentinel
 // and panics to unwind the stack back to the call/cc frame.
+// Multiple arguments are packed as MultipleValues, matching (values ...) semantics.
 func (c *continuation) Apply(interpreter Scheme, args Pair, environment Environment) interface{} {
 	evaled := interpreter.EvalList(args, environment)
-	c.sentinel.value = First(evaled)
+	c.sentinel.value = primitiveValues(evaled)
 	panic(c.sentinel)
 }
 

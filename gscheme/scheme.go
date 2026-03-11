@@ -46,6 +46,7 @@ func New() Scheme {
 	installPredicatePrimitives(result.environment)
 	installComplexPrimitives(result.environment)
 	installHigherOrderPrimitives(result.environment)
+	installValuesPrimitives(result.environment)
 	installStringPrimitives(result.environment)
 	installVectorPrimitives(result.environment)
 	installIOPrimitives(result.environment, result)
@@ -348,6 +349,38 @@ func (s *scheme) eval(x interface{}, environment Environment) interface{} {
 						proc.SetName(name)
 					}
 					return environment.Define(name, val)
+
+				case "define-values":
+					// (define-values (var ...) expr)
+					namesPair, ok := First(args).(Pair)
+					if !ok {
+						return Err("define-values: expected list of names", List(First(args)))
+					}
+					val := s.eval(Second(args), environment)
+					var vals []interface{}
+					if mv, ok := val.(MultipleValues); ok {
+						vals = []interface{}(mv)
+					} else {
+						vals = []interface{}{val}
+					}
+					names := namesPair
+					i := 0
+					for names != nil {
+						sym, ok := First(names).(Symbol)
+						if !ok {
+							return Err("define-values: expected symbol", List(First(names)))
+						}
+						if i >= len(vals) {
+							return Err("define-values: too few values", List(namesPair))
+						}
+						environment.Define(sym, vals[i])
+						names = RestPair(names)
+						i++
+					}
+					if i < len(vals) {
+						return Err("define-values: too many values", List(namesPair))
+					}
+					return nil
 
 				case "set!":
 					name, ok := First(args).(Symbol)

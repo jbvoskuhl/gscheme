@@ -23,6 +23,12 @@ func Stringify(object interface{}) string {
 		return stringifyCharacter(value)
 	case []byte:
 		return stringifyByteVector(value)
+	case MultipleValues:
+		strs := make([]string, len(value))
+		for i, v := range value {
+			strs[i] = Stringify(v)
+		}
+		return strings.Join(strs, "\n")
 	case []interface{}:
 		return stringifyVector(value)
 	case string:
