@@ -65,6 +65,22 @@ const primitivesScheme = `
 ;; letrec* is identical to letrec in gscheme (left-to-right evaluation)
 (define letrec* letrec)
 
+;; let-values: bind multiple return values from each init expression
+;; (let-values (((a b) expr) ...) body...)
+;; Desugars to nested call-with-values.
+(define let-values
+  (macro (bindings . body)
+    (if (null? bindings)
+        (cons 'begin body)
+        (let ((binding (first bindings)))
+          (list 'call-with-values
+                (list 'lambda '() (second binding))
+                (list 'lambda (first binding)
+                      (cons 'let-values (cons (rest bindings) body))))))))
+
+;; let*-values: sequential let-values (each init may reference previous bindings)
+(define let*-values let-values)
+
 ;; syntax-error is an alias for error per R7RS
 (define syntax-error error)
 
