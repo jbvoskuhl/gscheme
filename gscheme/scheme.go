@@ -46,6 +46,7 @@ func New() Scheme {
 	installPredicatePrimitives(result.environment)
 	installComplexPrimitives(result.environment)
 	installHigherOrderPrimitives(result.environment)
+	installPromisePrimitives(result.environment)
 	installStringPrimitives(result.environment)
 	installVectorPrimitives(result.environment)
 	installIOPrimitives(result.environment, result)
@@ -369,6 +370,14 @@ func (s *scheme) eval(x interface{}, environment Environment) interface{} {
 					params := First(args)
 					body := Rest(args)
 					return NewMacro(params, body, environment)
+
+				case "delay":
+					thunk := NewClosure(nil, args, environment)
+					return &Promise{state: &promiseState{thunk: thunk}}
+
+				case "delay-force", "lazy":
+					thunk := NewClosure(nil, args, environment)
+					return &Promise{state: &promiseState{thunk: thunk, iterative: true}}
 				}
 			}
 
