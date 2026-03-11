@@ -682,6 +682,55 @@
   (test-eqv "define-values too many" #t
     (guard (e (#t (error-object? e))) (define-values (u) (values 1 2)))))
 
+(test-group "define-library and import"
+  ;; define a simple library and import it
+  (define-library (lib math)
+    (export lib-square lib-cube)
+    (begin
+      (define (lib-square x) (* x x))
+      (define (lib-cube x) (* x x x))))
+  (import (lib math))
+  (test-equal "import: square" 9 (lib-square 3))
+  (test-equal "import: cube"  27 (lib-cube 3))
+
+  ;; only import subset
+  (define-library (lib strings)
+    (export lib-greet lib-shout)
+    (begin
+      (define (lib-greet name) (string-append "hello " name))
+      (define (lib-shout name) (string-append "HELLO " name))))
+  (import (only (lib strings) lib-greet))
+  (test-equal "import only: greet" "hello world" (lib-greet "world"))
+
+  ;; except: import everything except one name
+  (import (except (lib strings) lib-greet))
+  (test-equal "import except: shout" "HELLO world" (lib-shout "world"))
+
+  ;; prefix: add a prefix to all imported names
+  (define-library (lib nums)
+    (export lib-double)
+    (begin
+      (define (lib-double x) (* 2 x))))
+  (import (prefix (lib nums) my-))
+  (test-equal "import prefix" 10 (my-lib-double 5))
+
+  ;; rename: import with renamed binding
+  (import (rename (lib nums) (lib-double twice)))
+  (test-equal "import rename" 8 (twice 4))
+
+  ;; define-library with multiple begin blocks
+  (define-library (lib multi)
+    (export lib-add lib-sub)
+    (begin (define (lib-add a b) (+ a b)))
+    (begin (define (lib-sub a b) (- a b))))
+  (import (lib multi))
+  (test-equal "import multi-begin add" 7 (lib-add 3 4))
+  (test-equal "import multi-begin sub" 1 (lib-sub 4 3))
+
+  ;; scheme standard libraries: (scheme base) is importable
+  (test-eqv "scheme base importable" #t
+    (guard (e (#t #f)) (import (scheme base)) #t)))
+
 (test-group "member/assoc with custom comparator"
   ;; member with 3-arg form
   (test-equal "member custom comparator found" '(2 3)
