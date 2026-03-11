@@ -436,6 +436,62 @@
   (set-cdr! lst '(20 30))
   (test-equal "set-cdr! on list" '(1 20 30) lst))
 
+(test-group "floor/"
+  (test-equal "floor/ 7 2" '(3 1)
+    (call-with-values (lambda () (floor/ 7 2)) list))
+  (test-equal "floor/ -7 2" '(-4 1)
+    (call-with-values (lambda () (floor/ -7 2)) list))
+  (test-equal "floor/ 7 -2" '(-4 -1)
+    (call-with-values (lambda () (floor/ 7 -2)) list))
+  (test-equal "floor/ -7 -2" '(3 -1)
+    (call-with-values (lambda () (floor/ -7 -2)) list))
+  ;; consistent with floor-quotient and floor-remainder
+  (test-eqv "floor/ quotient matches floor-quotient" #t
+    (let-values (((q r) (floor/ 13 4)))
+      (= q (floor-quotient 13 4))))
+  (test-eqv "floor/ remainder matches floor-remainder" #t
+    (let-values (((q r) (floor/ 13 4)))
+      (= r (floor-remainder 13 4)))))
+
+(test-group "truncate/"
+  (test-equal "truncate/ 7 2" '(3 1)
+    (call-with-values (lambda () (truncate/ 7 2)) list))
+  (test-equal "truncate/ -7 2" '(-3 -1)
+    (call-with-values (lambda () (truncate/ -7 2)) list))
+  (test-equal "truncate/ 7 -2" '(-3 1)
+    (call-with-values (lambda () (truncate/ 7 -2)) list))
+  (test-equal "truncate/ -7 -2" '(3 -1)
+    (call-with-values (lambda () (truncate/ -7 -2)) list))
+  ;; consistent with truncate-quotient and truncate-remainder
+  (test-eqv "truncate/ quotient matches truncate-quotient" #t
+    (let-values (((q r) (truncate/ 13 4)))
+      (= q (truncate-quotient 13 4))))
+  (test-eqv "truncate/ remainder matches truncate-remainder" #t
+    (let-values (((q r) (truncate/ 13 4)))
+      (= r (truncate-remainder 13 4)))))
+
+(test-group "exact-integer-sqrt"
+  (test-equal "exact-integer-sqrt 0" '(0 0)
+    (call-with-values (lambda () (exact-integer-sqrt 0)) list))
+  (test-equal "exact-integer-sqrt 1" '(1 0)
+    (call-with-values (lambda () (exact-integer-sqrt 1)) list))
+  (test-equal "exact-integer-sqrt 4" '(2 0)
+    (call-with-values (lambda () (exact-integer-sqrt 4)) list))
+  (test-equal "exact-integer-sqrt 14" '(3 5)
+    (call-with-values (lambda () (exact-integer-sqrt 14)) list))
+  ;; results satisfy n = s^2 + r
+  (test-eqv "exact-integer-sqrt identity" #t
+    (let-values (((s r) (exact-integer-sqrt 100)))
+      (= 100 (+ (* s s) r))))
+  ;; works on large exact integers
+  (test-eqv "exact-integer-sqrt bignum" #t
+    (let-values (((s r) (exact-integer-sqrt (expt 2 64))))
+      (and (= s (expt 2 32)) (= r 0))))
+  ;; results are exact
+  (test-eqv "exact-integer-sqrt results are exact" #t
+    (let-values (((s r) (exact-integer-sqrt 15)))
+      (and (exact? s) (exact? r)))))
+
 (test-group "truncate-quotient/truncate-remainder"
   ;; truncate-quotient truncates toward zero, matching quotient
   (test-eqv "truncate-quotient 7 2" 3 (truncate-quotient 7 2))
@@ -547,6 +603,81 @@
   ;; Results are exact
   (test-eqv "numerator result is exact" #t (exact? (numerator 3/4)))
   (test-eqv "denominator result is exact" #t (exact? (denominator 3/4))))
+
+(test-group "values/call-cc"
+  ;; single value through continuation (existing behavior must not regress)
+  (test-equal "call/cc single value" 42
+    (call-with-values
+      (lambda () (call/cc (lambda (k) (k 42))))
+      (lambda (x) x)))
+  ;; multiple values through continuation
+  (test-equal "call/cc multiple values" '(1 2 3)
+    (call-with-values
+      (lambda () (call/cc (lambda (k) (k 1 2 3))))
+      list))
+  ;; zero values through continuation
+  (test-assert "call/cc zero values"
+    (null? (call-with-values
+              (lambda () (call/cc (lambda (k) (k))))
+              list))))
+
+(test-group "values"
+  ;; (values x) passes through unchanged
+  (test-equal "values single passthrough" 42 (values 42))
+  ;; zero values consumed by call-with-values
+  (test-assert "values zero" (null? (call-with-values (lambda () (values)) list)))
+  ;; multiple values collected into a list
+  (test-equal "values multiple" '(1 2 3)
+    (call-with-values (lambda () (values 1 2 3)) list))
+  ;; call-with-values: producer returns two values, consumer adds them
+  (test-equal "call-with-values add" 3
+    (call-with-values (lambda () (values 1 2)) +))
+  ;; single value from producer treated as (values x)
+  (test-equal "call-with-values single" '(42)
+    (call-with-values (lambda () 42) list))
+  ;; zero values: consumer receives no arguments
+  (test-assert "call-with-values zero" (null? (call-with-values (lambda () (values)) list)))
+  ;; lambda consumer receives values as separate arguments
+  (test-equal "call-with-values lambda" 200
+    (call-with-values (lambda () (values 10 20)) (lambda (a b) (* a b)))))
+
+(test-group "let-values"
+  ;; basic: bind two values
+  (test-equal "let-values two" '(1 2)
+    (let-values (((a b) (values 1 2))) (list a b)))
+  ;; single value clause
+  (test-equal "let-values single" 42
+    (let-values (((x) 42)) x))
+  ;; multiple clauses
+  (test-equal "let-values two clauses" '(1 2 3)
+    (let-values (((a b) (values 1 2)) ((c) 3)) (list a b c)))
+  ;; empty bindings
+  (test-equal "let-values empty bindings" 99
+    (let-values () 99))
+  ;; body uses all bound variables
+  (test-equal "let-values body expr" 6
+    (let-values (((a b c) (values 1 2 3))) (+ a b c)))
+  ;; let*-values: later clause may reference earlier binding
+  (test-equal "let*-values sequential" 3
+    (let*-values (((a) 1) ((b) (+ a 2))) b)))
+
+(test-group "define-values"
+  ;; basic two-value binding
+  (define-values (dv-a dv-b) (values 10 20))
+  (test-equal "define-values a" 10 dv-a)
+  (test-equal "define-values b" 20 dv-b)
+  ;; single value (non-MultipleValues passthrough)
+  (define-values (dv-x) 42)
+  (test-equal "define-values single" 42 dv-x)
+  ;; three values
+  (define-values (dv-p dv-q dv-r) (values 1 2 3))
+  (test-equal "define-values three" '(1 2 3) (list dv-p dv-q dv-r))
+  ;; arity error: too few values
+  (test-eqv "define-values too few" #t
+    (guard (e (#t (error-object? e))) (define-values (u v) (values 1))))
+  ;; arity error: too many values
+  (test-eqv "define-values too many" #t
+    (guard (e (#t (error-object? e))) (define-values (u) (values 1 2)))))
 
 (test-group "member/assoc with custom comparator"
   ;; member with 3-arg form

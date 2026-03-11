@@ -37,10 +37,13 @@ func installMathPrimitives(environment Environment) {
 	environment.DefineName(NewPrimitive("truncate", 1, 1, primitiveTruncate))
 	environment.DefineName(NewPrimitive("exact->inexact", 1, 1, primitiveExactToInexact))
 	environment.DefineName(NewPrimitive("inexact->exact", 1, 1, primitiveInexactToExact))
+	environment.DefineName(NewPrimitive("floor/", 2, 2, primitiveFloorDiv))
 	environment.DefineName(NewPrimitive("floor-quotient", 2, 2, primitiveFloorQuotient))
 	environment.DefineName(NewPrimitive("floor-remainder", 2, 2, primitiveFloorRemainder))
+	environment.DefineName(NewPrimitive("truncate/", 2, 2, primitiveTruncateDiv))
 	environment.DefineName(NewPrimitive("truncate-quotient", 2, 2, primitiveQuotient))
 	environment.DefineName(NewPrimitive("truncate-remainder", 2, 2, primitiveRemainder))
+	environment.DefineName(NewPrimitive("exact-integer-sqrt", 1, 1, primitiveExactIntegerSqrt))
 	environment.DefineName(NewPrimitive("exact", 1, 1, primitiveInexactToExact))
 	environment.DefineName(NewPrimitive("inexact", 1, 1, primitiveExactToInexact))
 	environment.DefineName(NewPrimitive("numerator", 1, 1, primitiveNumerator))
@@ -719,6 +722,32 @@ func primitiveRationalize(args Pair) interface{} {
 	}
 	f, _ := result.Float64()
 	return f
+}
+
+// primitiveFloorDiv returns (values floor-quotient floor-remainder) for n1 and n2.
+func primitiveFloorDiv(args Pair) interface{} {
+	return MultipleValues{primitiveFloorQuotient(args), primitiveFloorRemainder(args)}
+}
+
+// primitiveTruncateDiv returns (values truncate-quotient truncate-remainder) for n1 and n2.
+func primitiveTruncateDiv(args Pair) interface{} {
+	return MultipleValues{primitiveQuotient(args), primitiveRemainder(args)}
+}
+
+// primitiveExactIntegerSqrt returns (values s r) where s = floor(sqrt(n)) and r = n - s*s.
+// n must be an exact non-negative integer.
+func primitiveExactIntegerSqrt(args Pair) interface{} {
+	n := First(args)
+	if !isExactInt(n) {
+		return Err("exact-integer-sqrt: argument must be an exact non-negative integer", List(n))
+	}
+	bn := ToBigInt(n)
+	if bn.Sign() < 0 {
+		return Err("exact-integer-sqrt: argument must be non-negative", List(n))
+	}
+	s := new(big.Int).Sqrt(bn)
+	r := new(big.Int).Sub(bn, new(big.Int).Mul(s, s))
+	return MultipleValues{SimplifyBigInt(s), SimplifyBigInt(r)}
 }
 
 // sternBrocot finds the simplest rational (smallest denominator) in [lo, hi].
