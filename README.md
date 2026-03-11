@@ -72,6 +72,8 @@ Scheme values map directly to Go types:
 | bytevector | `[]byte` |
 | closure | `Closure` interface |
 | macro | `Macro` interface |
+| promise | `*Promise` |
+| multiple values | `MultipleValues` (`[]interface{}`) |
 | port | `*InputPort` / `*OutputPort` |
 | empty list | `nil` |
 
@@ -81,16 +83,17 @@ The empty list is represented as Go `nil`, which means many list operations redu
 
 User-defined macros use a simple `macro` special form that works like `lambda` but receives its arguments unevaluated and returns an expression to be evaluated in the caller's environment. This is not hygienic — it is more like traditional Lisp `fexpr`-style macros, except the expansion is re-evaluated rather than directly called.
 
-Several standard macros (`let`, `let*`, `letrec`, `letrec*`, `and`, `or`, `quasiquote`, `when`, `unless`, `case`, `do`, `named let`) are implemented in Scheme itself and bootstrapped at startup.
+Several standard macros (`let`, `let*`, `letrec`, `letrec*`, `and`, `or`, `quasiquote`, `when`, `unless`, `case`, `do`, `named let`, `let-values`, `let*-values`) are implemented in Scheme itself and bootstrapped at startup.
 
 ### Continuations
 
-`call/cc` (`call-with-current-continuation`) is implemented as **escape-only continuations** using panic/recover. Invoking a captured continuation unwinds the stack to the capture point by raising a typed panic that is caught by the surrounding `Eval` boundary. This is sufficient for early exit, coroutine-like patterns, and most practical uses of `call/cc`, but it does not support re-entrant or upward continuations.
+`call/cc` (`call-with-current-continuation`) is implemented as **escape-only continuations** using panic/recover. Invoking a captured continuation unwinds the stack to the capture point by raising a typed panic that is caught by the surrounding `Eval` boundary. Multiple values can be passed through a continuation — `(k 1 2 3)` delivers three values to the continuation's consumer. This is sufficient for early exit, coroutine-like patterns, and most practical uses of `call/cc`, but it does not support re-entrant or upward continuations.
 
 ## R7RS Coverage
 
 GScheme covers the bulk of R7RS-small:
 
+- **4.2.5** Delayed evaluation: `delay`, `force`, `delay-force`, `lazy`, `make-promise`, `promise?`
 - **6.1** Equivalence: `eq?`, `eqv?`, `equal?`
 - **6.2** Numbers: full numeric tower, all required procedures
 - **6.3** Booleans: `boolean?`, `not`, `boolean=?`
@@ -100,7 +103,7 @@ GScheme covers the bulk of R7RS-small:
 - **6.7** Strings: all standard procedures including `string-map`, `string-for-each`
 - **6.8** Vectors: all standard procedures
 - **6.9** Bytevectors: all standard procedures, UTF-8 conversion
-- **6.10** Control: `apply`, `map`, `for-each`, `call/cc`, `values`/`call-with-values` (partial)
+- **6.10** Control: `apply`, `map`, `for-each`, `call/cc`, `values`, `call-with-values`, `define-values`
 - **6.11** Exceptions: `guard`, `with-exception-handler`, `raise`, `raise-continuable`, `error`
 - **6.12** Environments: `interaction-environment`, `eval`
 - **6.13** Ports: text and binary ports, file and string ports, standard port access
@@ -120,17 +123,9 @@ GScheme covers the bulk of R7RS-small:
 
 The `macro` special form is not hygienic. R7RS specifies `syntax-rules` for pattern-based hygienic macro definitions. This is not yet implemented; `macro` is the only user-extensible macro mechanism available.
 
-### Multiple Values
-
-`values` and `call-with-values` are defined but not fully integrated. Passing multiple values across the full range of contexts described in R7RS is incomplete.
-
 ### Module / Library System
 
 There is no `define-library` or module system. Everything lives in a single flat environment. For embedding use cases this is often fine, but it means there is no namespace isolation between separately loaded files.
-
-### Lazy Evaluation
-
-`delay`, `force`, and `make-promise` (R7RS 6.10) are not yet implemented.
 
 ### `syntax-error`
 
