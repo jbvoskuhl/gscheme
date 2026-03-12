@@ -22,6 +22,9 @@ s.Environment().Define(gscheme.Symbol("my-func"), gscheme.Primitive{
     },
 })
 
+// Register a library so Scheme code can (import (my lib))
+s.RegisterLibrary(lib)
+
 // Start an interactive REPL (with readline support when stdin is a terminal)
 s.ReadEvalPrintLoop()
 ```
@@ -107,6 +110,7 @@ GScheme covers the bulk of R7RS-small:
 - **6.11** Exceptions: `guard`, `with-exception-handler`, `raise`, `raise-continuable`, `error`
 - **6.12** Environments: `interaction-environment`, `eval`
 - **6.13** Ports: text and binary ports, file and string ports, standard port access
+- **5.6** Libraries: `define-library` with `export` and `begin` declarations; `import` with `only`, `except`, `prefix`, `rename` modifiers; all standard R7RS library names pre-registered
 - **6.14** System: `load`, `command-line`, `exit`, `emergency-exit`, time procedures, environment variables
 
 ## Areas In Progress
@@ -122,10 +126,6 @@ GScheme covers the bulk of R7RS-small:
 ### Hygienic Macros (`syntax-rules`)
 
 The `macro` special form is not hygienic. R7RS specifies `syntax-rules` for pattern-based hygienic macro definitions. This is not yet implemented; `macro` is the only user-extensible macro mechanism available.
-
-### Module / Library System
-
-There is no `define-library` or module system. Everything lives in a single flat environment. For embedding use cases this is often fine, but it means there is no namespace isolation between separately loaded files.
 
 ### `syntax-error`
 
